@@ -13,14 +13,21 @@ def check_ip(ip):
         return(ip)
     except ValueError:
         return socket.gethostbyname(ip)
+    
+    
+def get_banner(s):
+    return s.recv(1024)
 
 def scan_port(ipaddress, port):
     try:
         sock = socket.socket()
-        sock.settimeout(0.5)   #cambiarlo a mi gusto
+        sock.settimeout(0.5)   #cambiarlo a mi gusto o incluso sacarlo
         sock.connect((ipaddress, port))
-        print('[+] El puerto '+ str(port) + ' esta abierto')
-    
+        try:
+            banner = get_banner(sock)
+            print('[+] Puerto abierto '+ str(port) + ' : ' + str(banner.decode().strip('\n')))
+        except:
+            print('[+] Puerto abierto '+ str(port))
     except:
         pass
         # print('[-] El puerto '+ str(port) + ' esta cerrado')
