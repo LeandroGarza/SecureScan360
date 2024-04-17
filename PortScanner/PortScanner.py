@@ -55,7 +55,7 @@ class PortScan():
             #scan(targets,port_num)
             scan(targets)
 
-"""
+
 # version que indica que servicio corre en cada puerto
 import socket       #permite establecer la conexion por internet
 from IPy import IP
@@ -63,7 +63,7 @@ from IPy import IP
 def scan(target):
     converted_ip = check_ip(target)
     print('\n' + '[-_0 Scanning target] ' + str(target))
-    for port in range(1,100):
+    for port in range(19,500):
         scan_port(converted_ip, port)
 
 def check_ip(ip):
@@ -97,5 +97,26 @@ if ',' in targets:
     for ip_add in targets.split(','):
         scan(ip_add.strip(' '))
         
+else:
+    scan(targets)
+"""
+
+import nmap
+
+def scan(target):
+    nm = nmap.PortScanner()
+    nm.scan(hosts=target, arguments='-p 20,21,22,25,53,80,110,123,143,179,443,465,500,587,993,995,2222,3389,41648 -sV')  # Escaneo de todos los puertos con detección de versiones
+    for host in nm.all_hosts():
+        print('\n' + '[-_0 Scanning target] ' + str(host))
+        for proto in nm[host].all_protocols():
+            print('Protocolo : %s' % proto)
+            ports = nm[host][proto].keys()
+            for port in ports:
+                print('[+] Puerto abierto ' + str(port) + ' : ' + nm[host][proto][port]['product'] + ' ' + nm[host][proto][port]['version'])
+
+targets = input('Escriba el dominio o ips a escanear (separados por coma): ')
+if ',' in targets:
+    for ip_add in targets.split(','):
+        scan(ip_add.strip(' '))
 else:
     scan(targets)
