@@ -105,10 +105,11 @@ import nmap
 
 def scan(target):
     nm = nmap.PortScanner()
-    nm.scan(hosts=target, arguments='-p 20,21,22,25,53,80,110,123,143,179,443,465,500,587,993,995,2222,3389,41648 -sV')  # Escaneo de todos los puertos con detección de versiones
+    nm.scan(hosts=target, arguments='-p 20,21,22,25,53,80,110,123,143,179,443,465,500,587,993,995,2222,3389,41648 -sV -sC')  # Escaneo de todos los puertos con detección de versiones
     
     with open('vulbanners.txt', 'r') as file:
-        vul_banners = file.read().splitlines()
+        #vul_banners = file.read().splitlines()
+        vul_banners = [line.strip() for line in file.readlines()]
     
     for host in nm.all_hosts():
         print('\n' + '[-_0 Scanning target] ' + str(host))
@@ -120,7 +121,7 @@ def scan(target):
                 print('[+] Puerto abierto ' + str(port) + ' : ' + product_version)
                 if product_version in vul_banners:
                     print('[!!] VULNERABLE BANNER: "' + product_version + '" ON PORT: ' + str(port))
-
+                    
 targets = input('Escriba el dominio o ips a escanear (separados por coma): ')
 if ',' in targets:
     for ip_add in targets.split(','):
