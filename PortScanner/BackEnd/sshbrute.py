@@ -43,8 +43,8 @@ def main():
                     elif response == 1:
                         print(f'[-] Incorrect Credentials: {username} / {password}')
                     elif response == 2:
-                        print('[!!] Could not connect to the target.')
-                        sys.exit(1)
+                        print('[!!] Could not connect to the target. Retrying...')
+                        break  # Salir del bucle de contraseñas y probar el siguiente usuario
 
 if __name__ == "__main__":
     main()

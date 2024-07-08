@@ -7,3 +7,5 @@ Dovecot imapd
 Exim smtpd 4.96-58-g4e9ed49f8
 Exim smtpd 4.96-58-g4e9ed49f8
 OpenSSH 8.0
+OpenSSH 4.7p1 Debian 8ubuntu1
+Postfix smtpd

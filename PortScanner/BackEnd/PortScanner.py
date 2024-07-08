@@ -112,7 +112,7 @@ def scan(target):
         vul_banners = [line.strip() for line in file.readlines()]
     
     for host in nm.all_hosts():
-        print('\n' + '[-_0 Scanning target] ' + str(host))
+        print('\n' + 'Ip obtenida: ' + str(host))
         for proto in nm[host].all_protocols():
             print('Protocolo : %s' % proto)
             ports = nm[host][proto].keys()
@@ -122,7 +122,8 @@ def scan(target):
                 if product_version in vul_banners:
                     print('[!!] VULNERABLE BANNER: "' + product_version + '" ON PORT: ' + str(port))
                     
-targets = input('Escriba el dominio o ips a escanear (separados por coma): ')
+targets = input('Escriba el dominio o ip a escanear: ')
+input('Escaneo iniciado, esto puede tardar unos minutos..')
 if ',' in targets:
     for ip_add in targets.split(','):
         scan(ip_add.strip(' '))

