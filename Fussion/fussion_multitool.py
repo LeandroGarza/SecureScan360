@@ -18,7 +18,7 @@ def scan(target):
                 product_version = nm[host][proto][port]['product'] + ' ' + nm[host][proto][port]['version']
                 print('[+] Puerto abierto ' + str(port) + ' : ' + product_version)
                 if product_version in vul_banners:
-                    print('[!!] VULNERABLE BANNER: "' + product_version + '" ON PORT: ' + str(port))
+                    print(termcolor.colored(('[!!] VULNERABLE BANNER: "' + product_version + '" ON PORT: ' + str(port)),'red'))
                     
 targets = input('Escriba el dominio o ips a escanear (separados por coma): ')
 if ',' in targets:

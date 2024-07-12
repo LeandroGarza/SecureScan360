@@ -24,8 +24,8 @@ def ssh_connect(username, password):
         thread_limiter.release()
 
 host = input('[+] Target Address: ')
-usernames_file = "usernames.txt"
-passwords_file = "passwords.txt"
+usernames_file = "usernamesReal.txt"
+passwords_file = "passwordsReal.txt"
 print('\n')
 
 if os.path.exists(passwords_file) == False:

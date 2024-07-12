@@ -7,3 +7,5 @@ Dovecot imapd
 Exim smtpd 4.96-58-g4e9ed49f8
 Exim smtpd 4.96-58-g4e9ed49f8
 OpenSSH 8.0
+vsftpd 2.3.4
+ISC BIND 9.4.2
