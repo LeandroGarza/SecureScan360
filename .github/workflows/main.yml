@@ -15,6 +15,10 @@ jobs:
       with:
         python-version: '3.x'
 
+    - name: Install Python dependencies
+      run: |
+        python -m pip install python-nmap paramiko termcolor requests time threading os sys
+
     - name: Run script
       env:
         API_KEY: ${{ secrets.API_KEY }}
