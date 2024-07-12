@@ -1,6 +1,144 @@
 import nmap
 import paramiko, sys, os, termcolor
 import threading, time
+import requests
+
+API_KEY = 'UQDQBWYICBHJA5UVHZCYUABANRUUM7LZNQXBIOB1P22TNNWJP0FIW8BWW14YRR4T'
+
+def is_vulnerable(product, version):
+    api_url = "https://vulners.com/api/v3/search/lucene/"
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Vulners-ApiKey': API_KEY
+    }
+    query = f"{product} {version}"
+    data = {
+        "query": query,
+        "size": 1  # Limita el tamaño de la respuesta
+    }
+    
+    try:
+        response = requests.post(api_url, headers=headers, json=data)
+        response.raise_for_status()  # Lanza un error si la respuesta HTTP es un error
+        data = response.json()
+        if data.get('data', {}).get('total', 0) > 0:
+            vuln_data = data['data']['search'][0]
+            title = vuln_data.get('title', 'No disponible')
+            cvss_score = vuln_data.get('cvss', {}).get('score', 'No disponible')
+            description = vuln_data.get('description', 'No disponible')
+            references = vuln_data.get('href', 'No disponible')
+            return True, {
+                'title': title,
+                'cvss_score': cvss_score,
+                'description': description,
+                'references': references
+            }
+        else:
+            return False, {}
+    except requests.exceptions.RequestException as e:
+        print(f"Error al consultar la API de Vulners: {e}")
+        return False, {}
+    except ValueError as e:
+        print(f"Error al decodificar la respuesta JSON: {e}")
+        return False, {}
+
+def scan(target):
+    nm = nmap.PortScanner()
+    nm.scan(hosts=target, arguments='-p 20,21,22,25,53,80,110,123,143,179,443,465,500,587,993,995,2222,3389,41648 -sV -sC')  # Escaneo de todos los puertos con detección de versiones
+    
+    for host in nm.all_hosts():
+        print('\n' + 'Escaneando el objetivo ' + str(host))
+        for proto in nm[host].all_protocols():
+            print('Protocolo : %s' % proto)
+            ports = nm[host][proto].keys()
+            for port in ports:
+                product = nm[host][proto][port].get('product', '')
+                version = nm[host][proto][port].get('version', '')
+                if product and version:
+                    product_version = f"{product} {version}"
+                    print('[+] Puerto abierto ' + str(port) + ' : ' + product_version)
+                    is_vuln, vul_data = is_vulnerable(product, version)
+                    if is_vuln:
+                        print(termcolor.colored(f'[!!] VULNERABLE BANNER: "{product_version}" ON PORT: {str(port)}', 'red'))
+                        print('Detalles de la vulnerabilidad:')
+                        print(f"  Título: {vul_data.get('title', 'No disponible')}")
+                        print(f"  CVSS Score: {vul_data.get('cvss_score', 'No disponible')}")
+                        print(f"  Descripción: {vul_data.get('description', 'No disponible')}")
+                        print(f"  Referencias: {vul_data.get('references', 'No disponible')}\n")
+
+targets = input('Escriba el dominio o ip a escanear: ')
+if ',' in targets:
+    for ip_add in targets.split(','):
+        scan(ip_add.strip(' '))
+else:
+    scan(targets)
+
+
+"""
+def is_vulnerable(product, version):
+    api_url = "https://vulners.com/api/v3/search/lucene/"
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Vulners-ApiKey': API_KEY
+    }
+    query = f"{product} {version}"
+    data = {
+        "query": query,
+        "size": 1  # Limita el tamaño de la respuesta
+    }
+    
+    try:
+        response = requests.post(api_url, headers=headers, json=data)
+        response.raise_for_status()  # Lanza un error si la respuesta HTTP es un error
+        data = response.json()
+        if data.get('data', {}).get('total', 0) > 0:
+            return True, data['data']['search'][0]
+        else:
+            return False, {}
+    except requests.exceptions.RequestException as e:
+        print(f"Error al consultar la API de Vulners: {e}")
+        return False, {}
+    except ValueError as e:
+        print(f"Error al decodificar la respuesta JSON: {e}")
+        return False, {}
+
+def scan(target):
+    nm = nmap.PortScanner()
+    nm.scan(hosts=target, arguments='-p 20,21,22,25,53,80,110,123,143,179,443,465,500,587,993,995,2222,3389,41648 -sV -sC')  # Escaneo de todos los puertos con detección de versiones
+    
+    for host in nm.all_hosts():
+        print('\n' + 'Escaneando el objetivo ' + str(host))
+        for proto in nm[host].all_protocols():
+            print('Protocolo : %s' % proto)
+            ports = nm[host][proto].keys()
+            for port in ports:
+                product = nm[host][proto][port].get('product', '')
+                version = nm[host][proto][port].get('version', '')
+                if product and version:
+                    product_version = f"{product} {version}"
+                    print('[+] Puerto abierto ' + str(port) + ' : ' + product_version)
+                    is_vuln, vul_data = is_vulnerable(product, version)
+                    if is_vuln:
+                        print(termcolor.colored(f'[!!] VULNERABLE BANNER: "{product_version}" ON PORT: {str(port)}', 'red'))
+                        print('Detalles de la vulnerabilidad:')
+                        print(f"  Título: {vul_data.get('title', 'No disponible')}")
+                        print(f"  CVSS Score: {vul_data.get('cvss', {}).get('score', 'No disponible')}")
+                        print(f"  Descripción: {vul_data.get('description', 'No disponible')}")
+                        print(f"  Referencias: {vul_data.get('vhref', 'No disponible')}\n")
+
+targets = input('Escriba el dominio o ip a escanear: ')
+if ',' in targets:
+    for ip_add in targets.split(','):
+        scan(ip_add.strip(' '))
+else:
+    scan(targets)
+"""
+
+
+
+
+# escaneo de puertos en base a txt
+"""
 
 def scan(target):
     nm = nmap.PortScanner()
@@ -11,7 +149,7 @@ def scan(target):
         vul_banners = [line.strip() for line in file.readlines()]
     
     for host in nm.all_hosts():
-        print('\n' + '[-_0 Scanning target] ' + str(host))
+        print('\n' + 'Escaneando el objetivo ' + str(host))
         for proto in nm[host].all_protocols():
             print('Protocolo : %s' % proto)
             ports = nm[host][proto].keys()
@@ -27,55 +165,9 @@ if ',' in targets:
         scan(ip_add.strip(' '))
 else:
     scan(targets)
+"""
     
-"""
-def ssh_connect(password, code=0):
-
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-    try:
-        ssh.connect(targets, port=22, username=username, password=password)
-
-    except paramiko.AuthenticationException:
-        code = 1
-
-    except socket.error as e:
-        code = 2
- 
-    ssh.close()
-    return code
-
-
-# host = input('[+] Target Address: ')
-username = input('[+] SSH Username: ')
-input_file = "passwords.txt"
-print('\n')
-
-if os.path.exists(input_file) == False:
-    print('[!!] That File/Path Doesnt Exist')
-    sys.exit(1)
-
-with open(input_file, 'r') as file:
-    for line in file.readlines():
-        password = line.strip()
-        try:
-            response = ssh_connect(password)
-            if response == 0:
-                print(termcolor.colored(('[+] Found Password: ' + password + ' , For Account: ' + username), 'green'))
-                break
-
-            elif response == 1:
-                print('[-] Incorrect Login: ' + password)
-
-            elif response == 2:
-                print('[!!] Cant Connect')
-                sys.exit(1)
-
-        except Exception as e:
-            print(e)
-            pass         
-"""
+# se empieza fuerza bruta    
 stop_flag = False
 max_threads = 5  # Número máximo de hilos simultáneos
 thread_limiter = threading.BoundedSemaphore(max_threads)
