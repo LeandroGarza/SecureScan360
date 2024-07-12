@@ -3,7 +3,8 @@ import paramiko, sys, os, termcolor
 import threading, time
 import requests
 
-API_KEY = 'UQDQBWYICBHJA5UVHZCYUABANRUUM7LZNQXBIOB1P22TNNWJP0FIW8BWW14YRR4T'
+#API_KEY = 'UQDQBWYICBHJA5UVHZCYUABANRUUM7LZNQXBIOB1P22TNNWJP0FIW8BWW14YRR4T'
+API_KEY = os.getenv("API_KEY")
 
 def is_vulnerable(product, version):
     api_url = "https://vulners.com/api/v3/search/lucene/"
