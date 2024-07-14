@@ -2,15 +2,19 @@ body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 20px;
-    background-color: #f4f4f4;
+    background-color: #1d1f21;
+    color: #c5c8c6;
 }
 
 h1 {
-    color: #333;
+    color: #f0c674;
+    text-align: center;
+    margin-bottom: 20px;
 }
 
 form {
     margin-bottom: 20px;
+    text-align: center;
 }
 
 label {
@@ -19,4 +23,52 @@ label {
 
 input {
     margin-right: 10px;
+    padding: 5px;
+    border: 1px solid #373b41;
+    border-radius: 3px;
+    background-color: #282a2e;
+    color: #c5c8c6;
+}
+
+input[type="submit"] {
+    background-color: #f0c674;
+    color: #1d1f21;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+input[type="submit"]:hover {
+    background-color: #c5c8c6;
+    color: #1d1f21;
+}
+
+#tasks {
+    margin-top: 20px;
+    padding: 20px;
+    background-color: #282a2e;
+    border-radius: 5px;
+    color: #c5c8c6;
+}
+
+#tasks h2 {
+    text-align: center;
+    color: #f0c674;
+}
+
+#tasks ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+#tasks ul li {
+    margin: 10px 0;
+    padding: 10px;
+    background-color: #373b41;
+    border-radius: 3px;
+}
+
+#tasks ul li strong {
+    color: #f0c674;
 }

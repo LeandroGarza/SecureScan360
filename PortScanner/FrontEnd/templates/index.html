@@ -13,6 +13,35 @@
         <input type="text" id="target" name="target" required>
         <button type="submit">Comenzar</button>
     </form>
+    
+    <!-- Nueva sección de tareas -->
+    <section id="tasks">
+        <h2>Tareas realizadas por Secure Scan 360</h2>
+        <ul>
+            <li>
+                <strong>Escaneo de Puertos:</strong> Identifica puertos abiertos en un sistema y los servicios que están siendo ejecutados.
+            </li>
+            <li>
+                <strong>Vulnerabilidad de Puertos:</strong> Detecta posibles vulnerabilidades en los servicios que corren en los puertos abiertos.
+            </li>
+            <li>
+                <strong>Fuerza Bruta:</strong> Intenta descifrar contraseñas mediante la prueba de todas las combinaciones posibles.
+            </li>
+            <li>
+                <strong>ARPSpoof:</strong> Envenena la caché ARP de una red para interceptar tráfico entre dispositivos.
+            </li>
+            <li>
+                <strong>Man in the Middle:</strong> Intercepta y modifica la comunicación entre dos partes sin que estas lo sepan.
+            </li>
+            <li>
+                <strong>Email Scraper:</strong> Extrae direcciones de correo electrónico de sitios web para análisis posterior.
+            </li>
+            <li>
+                <strong>Intento de Backdoor:</strong> Intenta insertar un acceso oculto a un sistema para control futuro no autorizado.
+            </li>
+        </ul>
+    </section>
+
     <div id="results"></div>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
