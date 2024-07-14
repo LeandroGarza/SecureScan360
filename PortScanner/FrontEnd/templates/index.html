@@ -7,14 +7,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <h1>Secure Scan 360</h1>
+    <h1>SECURE SCAN 360</h1>
     <form action="/scan" method="post">
-        <label for="target">Su ip o dominio:</label>
+        <label for="target">Ingrese su ip / dominio:</label>
         <input type="text" id="target" name="target" required>
-        <button type="submit">Comenzar</button>
+        <button type="submit" class="submit-button">Comenzar</button>
     </form>
     
-    <!-- Nueva sección de tareas -->
     <section id="tasks">
         <h2>Tareas realizadas por Secure Scan 360</h2>
         <ul>

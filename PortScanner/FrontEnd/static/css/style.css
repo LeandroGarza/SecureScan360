@@ -1,15 +1,16 @@
 body {
-    font-family: Arial, sans-serif;
+    font-family: Montserrat;
     margin: 0;
-    padding: 20px;
+    padding: 25px;
     background-color: #1d1f21;
     color: #c5c8c6;
+    font-size: 22px;    
 }
 
 h1 {
-    color: #f0c674;
+    color: #ffc44f;
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 50px;
 }
 
 form {
@@ -19,24 +20,29 @@ form {
 
 label {
     margin-right: 10px;
+    color: #ffffff;
+    font-size: 19px;
 }
 
 input {
-    margin-right: 10px;
-    padding: 5px;
-    border: 1px solid #373b41;
+    margin-right: 9px;
+    padding: 6px;
+    border: 1px solid #ffffff;
     border-radius: 3px;
-    background-color: #282a2e;
+    background-color: #373b41;
     color: #c5c8c6;
+    font-size: 18px;
+    width: 165px;
 }
 
 input[type="submit"] {
-    background-color: #f0c674;
+    background-color: #ffffff;
     color: #1d1f21;
     border: none;
     padding: 10px 20px;
     cursor: pointer;
     border-radius: 3px;
+    font-size: 15px;
 }
 
 input[type="submit"]:hover {
@@ -44,22 +50,39 @@ input[type="submit"]:hover {
     color: #1d1f21;
 }
 
+button.submit-button {
+    background-color: #ffffff;
+    color: #1d1f21;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 14px;
+}
+
+button.submit-button:hover {
+    background-color: #c5c8c6;
+    color: #1d1f21;
+}
+
 #tasks {
-    margin-top: 20px;
-    padding: 20px;
+    margin-top: 50px;
+    padding: 1px;
     background-color: #282a2e;
     border-radius: 5px;
     color: #c5c8c6;
+    font-size: 15px; 
 }
 
 #tasks h2 {
     text-align: center;
-    color: #f0c674;
+    color: #d2d7fd;
 }
 
 #tasks ul {
     list-style-type: none;
     padding: 0;
+    color: #ffffff;
 }
 
 #tasks ul li {
@@ -70,5 +93,5 @@ input[type="submit"]:hover {
 }
 
 #tasks ul li strong {
-    color: #f0c674;
+    color: #9d9fb4;
 }
