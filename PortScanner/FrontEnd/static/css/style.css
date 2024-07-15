@@ -66,32 +66,26 @@ button.submit-button:hover {
 }
 
 #tasks {
-    margin-top: 50px;
-    padding: 1px;
-    background-color: #282a2e;
-    border-radius: 5px;
-    color: #c5c8c6;
-    font-size: 15px; 
-}
-
-#tasks h2 {
     text-align: center;
-    color: #d2d7fd;
 }
 
-#tasks ul {
-    list-style-type: none;
-    padding: 0;
-    color: #ffffff;
+.task-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 20px;
+    font-size: 17px;
 }
 
-#tasks ul li {
-    margin: 10px 0;
+.task {
+    border: 1px solid #ccc;
+    border-radius: 10px;
     padding: 10px;
-    background-color: #373b41;
-    border-radius: 3px;
+    width: 20%;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
-#tasks ul li strong {
-    color: #9d9fb4;
+.task h3 {
+    margin-top: 0;
 }
