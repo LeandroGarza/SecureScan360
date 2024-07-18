@@ -76,31 +76,27 @@ input[type="submit"]:hover, .submit-button:hover {
 }
 
 #results {
-    margin-top: 20px;
+    background-color: #282a2e;
     padding: 20px;
-    border: 1px solid #ccc;
     border-radius: 10px;
-    background-color: #2d2f31;
-    color: #ffffff;
-    font-size: 18px;
+    margin-top: 20px;
+    color: #c5c8c6;
 }
 
 #results h2 {
-    color: #ff6f61;
-}
-
-#results h3 {
     color: #ffc44f;
-}
-
-#results h4 {
-    color: #7eca9c;
 }
 
 #results p {
     margin: 5px 0;
 }
 
-#results hr {
-    border: 1px solid #444;
+#results .vulnerability-details {
+    margin-left: 20px;
+    color: #f0c674;
 }
+
+#results .vulnerability-details p {
+    margin: 2px 0;
+}
+

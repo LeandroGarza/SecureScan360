@@ -12,41 +12,46 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            displayResults(data);
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = formatResults(data);
         })
         .catch(error => console.error('Error:', error));
     });
-});
 
-function displayResults(data) {
-    const resultsDiv = document.getElementById('results');
-    resultsDiv.innerHTML = ''; // Clear previous results
-
-    if (data.vulnerabilities_found) {
-        resultsDiv.innerHTML += '<h2>Vulnerabilities Found</h2>';
-    } else {
-        resultsDiv.innerHTML += '<h2>No Vulnerabilities Found</h2>';
-    }
-
-    data.results.forEach(host => {
-        resultsDiv.innerHTML += `<h3>Host: ${host.host}</h3>`;
-        host.protocols.forEach(proto => {
-            resultsDiv.innerHTML += `<h4>Protocol: ${proto.protocol}</h4>`;
-            proto.ports.forEach(port => {
-                resultsDiv.innerHTML += `<p>Port: ${port.port}</p>`;
-                resultsDiv.innerHTML += `<p>Product: ${port.product}</p>`;
-                resultsDiv.innerHTML += `<p>Version: ${port.version}</p>`;
-                if (port.vulnerable) {
-                    resultsDiv.innerHTML += `<p style="color:red;">Vulnerable: Yes</p>`;
-                    resultsDiv.innerHTML += `<p>Title: ${port.vul_data.title}</p>`;
-                    resultsDiv.innerHTML += `<p>CVSS Score: ${port.vul_data.cvss_score}</p>`;
-                    resultsDiv.innerHTML += `<p>Description: ${port.vul_data.description}</p>`;
-                    resultsDiv.innerHTML += `<p>References: ${port.vul_data.references}</p>`;
-                } else {
-                    resultsDiv.innerHTML += `<p style="color:green;">Vulnerable: No</p>`;
-                }
-                resultsDiv.innerHTML += '<hr>';
+    function formatResults(data) {
+        let html = '<h2>Resultados del Escaneo</h2>';
+        
+        // Formatear resultados del escaneo de puertos
+        html += '<h3>Escaneo de Puertos:</h3>';
+        data.scan_result.results.forEach(hostResult => {
+            html += `<p>Host: ${hostResult.host}</p>`;
+            hostResult.protocols.forEach(protocol => {
+                html += `<p>Protocolo: ${protocol.protocol}</p>`;
+                protocol.ports.forEach(port => {
+                    html += `<p>Puerto: ${port.port}, Producto: ${port.product}, Versión: ${port.version}</p>`;
+                    if (port.vulnerable) {
+                        html += `<p style="color: red;">Vulnerable: Sí</p>`;
+                        html += `<p>Detalles de la vulnerabilidad:</p>`;
+                        html += `<p>Título: ${port.vul_data.title}</p>`;
+                        html += `<p>CVSS Score: ${port.vul_data.cvss_score}</p>`;
+                        html += `<p>Descripción: ${port.vul_data.description}</p>`;
+                        html += `<p>Referencias: ${port.vul_data.references}</p>`;
+                    } else {
+                        html += `<p>Vulnerable: No</p>`;
+                    }
+                });
             });
         });
-    });
-}
+
+        // fuerza bruta
+        html += '<h3>Resultados de la Fuerza Bruta:</h3>';
+        data.brute_force_result.forEach(result => {
+            html += `<p>Usuario: ${result.username}, Contraseña: ${result.password}, Estado: ${result.status}</p>`;
+            if (result.status === 'ssh_exception' || result.status === 'connection_failed') {
+                html += `<p>Error: ${result.error}</p>`;
+            }
+        });
+
+        return html;
+    }
+});
