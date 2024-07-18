@@ -1,9 +1,9 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
+    const form = document.getElementById('scan-form');
     form.addEventListener('submit', function(event) {
         event.preventDefault();
         const target = document.getElementById('target').value;
-        fetch('/scan', {
+        fetch('http://127.0.0.1:5000/scan', {  // URL correcta
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

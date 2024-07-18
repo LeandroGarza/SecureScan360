@@ -1,8 +1,116 @@
+from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
 import nmap
 import paramiko, sys, os, termcolor
 import threading, time
 import requests
 
+app = Flask(__name__, static_folder='FrontEnd/static', template_folder='FrontEnd/templates')
+CORS(app)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/status', methods=['GET'])
+def status():
+    return "Backend is running"
+
+@app.route('/scan', methods=['POST'])
+def handle_scan():
+    data = request.json
+    target = data.get('target')
+    if not target:
+        return jsonify({'error': 'No target provided'}), 400
+    scan_result = scan(target)
+    return jsonify(scan_result)
+
+API_KEY = os.getenv("API_KEY")
+
+def is_vulnerable(product, version):
+    api_url = "https://vulners.com/api/v3/search/lucene/"
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Vulners-ApiKey': API_KEY
+    }
+    query = f"{product} {version}"
+    data = {
+        "query": query,
+        "size": 1  # Limita el tamaño de la respuesta
+    }
+
+    try:
+        response = requests.post(api_url, headers=headers, json=data)
+        response.raise_for_status()  # Lanza un error si la respuesta HTTP es un error
+        data = response.json()
+        if data.get('data', {}).get('total', 0) > 0:
+            vuln_data = data['data']['search'][0]
+            title = vuln_data.get('title', 'No disponible')
+            cvss_score = vuln_data.get('cvss', {}).get('score', 'No disponible')
+            description = vuln_data.get('description', 'No disponible')
+            references = vuln_data.get('href', 'No disponible')
+            return True, {
+                'title': title,
+                'cvss_score': cvss_score,
+                'description': description,
+                'references': references
+            }
+        else:
+            return False, {}
+    except requests.exceptions.RequestException as e:
+        print(f"Error al consultar la API de Vulners: {e}")
+        return False, {}
+    except ValueError as e:
+        print(f"Error al decodificar la respuesta JSON: {e}")
+        return False, {}
+
+def scan(target):
+    nm = nmap.PortScanner()
+    nm.scan(hosts=target, arguments='-p 20,21,22,25,53,80,110,123,143,179,443,465,500,587,993,995,2222,3389,41648 -sV -sC')  # Escaneo de todos los puertos con detección de versiones
+    scan_results = []
+    vulnerabilities_found = False
+
+    for host in nm.all_hosts():
+        host_results = {
+            'host': host,
+            'protocols': []
+        }
+        for proto in nm[host].all_protocols():
+            protocol_results = {
+                'protocol': proto,
+                'ports': []
+            }
+            ports = nm[host][proto].keys()
+            for port in ports:
+                product = nm[host][proto][port].get('product', '')
+                version = nm[host][proto][port].get('version', '')
+                port_result = {
+                    'port': port,
+                    'product': product,
+                    'version': version,
+                    'vulnerable': False,
+                    'vul_data': {}
+                }
+                if product and version:
+                    is_vuln, vul_data = is_vulnerable(product, version)
+                    if is_vuln:
+                        vulnerabilities_found = True
+                        port_result['vulnerable'] = True
+                        port_result['vul_data'] = vul_data
+                protocol_results['ports'].append(port_result)
+            host_results['protocols'].append(protocol_results)
+        scan_results.append(host_results)
+
+    return {
+        'vulnerabilities_found': vulnerabilities_found,
+        'results': scan_results
+    }
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+# funciona bien de hoy
+"""
 #API_KEY = 'UQDQBWYICBHJA5UVHZCYUABANRUUM7LZNQXBIOB1P22TNNWJP0FIW8BWW14YRR4T'
 API_KEY = os.getenv("API_KEY")
 
@@ -78,7 +186,7 @@ if ',' in targets:
         scan(ip_add.strip(' '))
 else:
     scan(targets)
-
+"""
 # escaneo de puertos en base a txt
 """
 

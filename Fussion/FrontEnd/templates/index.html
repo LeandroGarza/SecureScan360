@@ -8,7 +8,7 @@
 </head>
 <body>
     <h1>SECURE SCAN 360</h1>
-    <form action="/scan" method="post">
+    <form id="scan-form">
         <label for="target">Ingrese su ip / dominio:</label>
         <input type="text" id="target" name="target" required>
         <button type="submit" class="submit-button">Comenzar</button>
@@ -52,3 +52,4 @@
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
+
