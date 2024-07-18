@@ -24,34 +24,45 @@ document.addEventListener('DOMContentLoaded', function() {
         // Formatear resultados del escaneo de puertos
         html += '<h3>Escaneo de Puertos:</h3>';
         data.scan_result.results.forEach(hostResult => {
-            html += `<p>Host: ${hostResult.host}</p>`;
+            html += `<div class="result-block"><p><strong>Host:</strong> ${hostResult.host}</p>`;
             hostResult.protocols.forEach(protocol => {
-                html += `<p>Protocolo: ${protocol.protocol}</p>`;
+                html += `<p><strong>Protocolo:</strong> ${protocol.protocol}</p>`;
                 protocol.ports.forEach(port => {
-                    html += `<p>Puerto: ${port.port}, Producto: ${port.product}, Versión: ${port.version}</p>`;
+                    html += `<div class="port-info"><p><strong>Puerto:</strong> ${port.port}, <strong>Producto:</strong> ${port.product}, <strong>Versión:</strong> ${port.version}</p>`;
                     if (port.vulnerable) {
-                        html += `<p style="color: red;">Vulnerable: Sí</p>`;
-                        html += `<p>Detalles de la vulnerabilidad:</p>`;
-                        html += `<p>Título: ${port.vul_data.title}</p>`;
-                        html += `<p>CVSS Score: ${port.vul_data.cvss_score}</p>`;
-                        html += `<p>Descripción: ${port.vul_data.description}</p>`;
-                        html += `<p>Referencias: ${port.vul_data.references}</p>`;
+                        html += `<p class="vulnerable">Vulnerable: Sí</p>`;
+                        html += `<div class="vulnerability-details"><p><strong>Título:</strong> ${port.vul_data.title}</p>`;
+                        html += `<p><strong>CVSS Score:</strong> ${port.vul_data.cvss_score}</p>`;
+                        html += `<p><strong>Descripción:</strong> ${port.vul_data.description}</p>`;
+                        html += `<p><strong>Referencias:</strong> ${port.vul_data.references}</p></div>`;
                     } else {
                         html += `<p>Vulnerable: No</p>`;
                     }
+                    html += `</div>`; // Close port-info div
                 });
             });
+            html += `</div>`; // Close result-block div
         });
-
-        // fuerza bruta
+    
+        // Formatear resultados de la fuerza bruta
         html += '<h3>Resultados de la Fuerza Bruta:</h3>';
         data.brute_force_result.forEach(result => {
-            html += `<p>Usuario: ${result.username}, Contraseña: ${result.password}, Estado: ${result.status}</p>`;
-            if (result.status === 'ssh_exception' || result.status === 'connection_failed') {
-                html += `<p>Error: ${result.error}</p>`;
+            html += `<div class="result-block"><p><strong>Usuario:</strong> ${result.username}, <strong>Contraseña:</strong> ${result.password}, `;
+            if (result.status === 'success') {
+                html += `<span class="status-success">Estado: Éxito</span>`;
+            } else if (result.status === 'failure') {
+                html += `<span class="status-failure">Estado: Contraseña Incorrecta</span>`;
+            } else if (result.status === 'ssh_exception') {
+                html += `<span class="status-error">Estado: Error SSH</span><p>Error: ${result.error}</p>`;
+            } else if (result.status === 'connection_failed') {
+                html += `<span class="status-error">Estado: Conexión Fallida</span><p>Error: ${result.error}</p>`;
+            } else {
+                html += `<span class="status-error">Estado: Error Desconocido</span><p>Error: ${result.error || 'Desconocido'}</p>`;
             }
+            html += `</p></div>`; // Close result-block div
         });
-
+    
         return html;
     }
+    
 });

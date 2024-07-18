@@ -83,12 +83,26 @@ input[type="submit"]:hover, .submit-button:hover {
     color: #c5c8c6;
 }
 
-#results h2 {
+#results h2, #results h3 {
     color: #ffc44f;
+    margin-bottom: 10px;
 }
 
-#results p {
-    margin: 5px 0;
+#results .result-block {
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 1px solid #444;
+    border-radius: 5px;
+    background-color: #1d1f21;
+}
+
+#results .port-info {
+    margin-left: 20px;
+}
+
+#results .vulnerable {
+    color: red;
+    font-weight: bold;
 }
 
 #results .vulnerability-details {
@@ -100,3 +114,17 @@ input[type="submit"]:hover, .submit-button:hover {
     margin: 2px 0;
 }
 
+#results .status-success {
+    color: green;
+    font-weight: bold;
+}
+
+#results .status-failure {
+    color: red;
+    font-weight: bold;
+}
+
+#results .status-error {
+    color: orange;
+    font-weight: bold;
+}
