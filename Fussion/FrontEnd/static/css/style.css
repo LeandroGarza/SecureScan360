@@ -1,5 +1,5 @@
 body {
-    font-family: Montserrat;
+    font-family: Montserrat, sans-serif;
     margin: 0;
     padding: 25px;
     background-color: #1d1f21;
@@ -35,7 +35,7 @@ input {
     width: 165px;
 }
 
-input[type="submit"] {
+input[type="submit"], .submit-button {
     background-color: #ffffff;
     color: #1d1f21;
     border: none;
@@ -45,22 +45,7 @@ input[type="submit"] {
     font-size: 15px;
 }
 
-input[type="submit"]:hover {
-    background-color: #c5c8c6;
-    color: #1d1f21;
-}
-
-button.submit-button {
-    background-color: #ffffff;
-    color: #1d1f21;
-    border: none;
-    padding: 10px 20px;
-    cursor: pointer;
-    border-radius: 3px;
-    font-size: 14px;
-}
-
-button.submit-button:hover {
+input[type="submit"]:hover, .submit-button:hover {
     background-color: #c5c8c6;
     color: #1d1f21;
 }
@@ -88,4 +73,34 @@ button.submit-button:hover {
 
 .task h3 {
     margin-top: 0;
+}
+
+#results {
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    background-color: #2d2f31;
+    color: #ffffff;
+    font-size: 18px;
+}
+
+#results h2 {
+    color: #ff6f61;
+}
+
+#results h3 {
+    color: #ffc44f;
+}
+
+#results h4 {
+    color: #7eca9c;
+}
+
+#results p {
+    margin: 5px 0;
+}
+
+#results hr {
+    border: 1px solid #444;
 }

