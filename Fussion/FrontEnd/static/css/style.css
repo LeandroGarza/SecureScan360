@@ -94,6 +94,7 @@ input[type="submit"]:hover, .submit-button:hover {
     border: 1px solid #444;
     border-radius: 5px;
     background-color: #1d1f21;
+    font-size: 19px;
 }
 
 #results .port-info {
@@ -103,28 +104,34 @@ input[type="submit"]:hover, .submit-button:hover {
 #results .vulnerable {
     color: red;
     font-weight: bold;
+    font-size: 19px;
 }
 
 #results .vulnerability-details {
     margin-left: 20px;
     color: #f0c674;
+    font-size: 19px;
 }
 
 #results .vulnerability-details p {
     margin: 2px 0;
+    font-size: 19px;
 }
 
 #results .status-success {
     color: green;
     font-weight: bold;
+    font-size: 19px;
 }
 
 #results .status-failure {
     color: red;
     font-weight: bold;
+    font-size: 19px;
 }
 
 #results .status-error {
     color: orange;
     font-weight: bold;
+    font-size: 19px;
 }
