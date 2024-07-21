@@ -11,7 +11,7 @@
     <form id="scan-form">
         <label for="target">Ingrese su IP / dominio:</label>
         <input type="text" id="target" name="target" required>
-        <button type="submit" class="submit-button">Comenzar</button>
+        <button type="submit" class="submit-button" id="start-button">Comenzar</button>
     </form>
     
     <section id="tasks">
@@ -48,6 +48,7 @@
         </div>
     </section>
 
+    <div id="message"></div>
     <div id="results"></div>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>

@@ -135,3 +135,9 @@ input[type="submit"]:hover, .submit-button:hover {
     font-weight: bold;
     font-size: 19px;
 }
+
+#message {
+    margin-top: 20px;
+    font-size: 1.2em;
+    color: blue;
+}
