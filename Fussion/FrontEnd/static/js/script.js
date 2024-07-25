@@ -35,13 +35,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     protocol.ports.forEach(port => {
                         html += `<div class="port-info"><p><strong>Puerto:</strong> ${port.port}, <strong>Producto:</strong> ${port.product}, <strong>Versión:</strong> ${port.version}</p>`;
                         if (port.vulnerable) {
-                            html += `<p class="vulnerable">Vulnerable: Sí</p>`;
-                            html += `<div class="vulnerability-details"><p><strong>Título:</strong> ${port.vul_data.title}</p>`;
-                            html += `<p><strong>CVSS Score:</strong> ${port.vul_data.cvss_score}</p>`;
-                            html += `<p><strong>Descripción:</strong> ${port.vul_data.description}</p>`;
-                            html += `<p><strong>Referencias:</strong> ${port.vul_data.references}</p></div>`;
+                            html += `<p class="vulnerable">&nbsp;Puerto Vulnerable!</p>`;
+                            // html += `<div class="vulnerability-details"><p><strong>Título:</strong> ${port.vul_data.title}</p>`;
+                            // tml += `<p><strong>CVSS Score:</strong> ${port.vul_data.cvss_score}</p>`;
+                            // html += `<p><strong>Descripción:</strong> ${port.vul_data.description}</p>`;
+                            // html += `<p><strong>Referencias:</strong> ${port.vul_data.references}</p></div>`;
                         } else {
-                            html += `<p>Vulnerable: No</p>`;
+                            html += `<p>&nbsp;Puerto No Vulnerable</p>`;
                         }
                         html += `</div>`; // Close port-info div
                     });
@@ -76,4 +76,3 @@ document.addEventListener('DOMContentLoaded', function() {
         return html;
     }
 });
-
