@@ -1,5 +1,4 @@
 msfadmin
-xd
 root
 admin
 user

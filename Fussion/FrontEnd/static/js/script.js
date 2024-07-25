@@ -2,9 +2,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('scan-form');
     form.addEventListener('submit', function(event) {
         event.preventDefault();
+        document.getElementById('tasks').style.display = 'none';
         document.getElementById('message').innerText = 'Comenzando el escaneo. Esto suele tardar de 2 a 10 minutos.';
         const target = document.getElementById('target').value;
-        fetch('http://127.0.0.1:5000/scan', {  // URL correcta
+        fetch('http://127.0.0.1:5000/scan', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
