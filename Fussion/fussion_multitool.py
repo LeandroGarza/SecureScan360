@@ -3,7 +3,7 @@ from flask_cors import CORS
 import nmap
 import paramiko, sys, os, termcolor
 import threading, time
-import requests
+import requests, socket
 
 app = Flask(__name__, static_folder='FrontEnd/static', template_folder='FrontEnd/templates')
 CORS(app)
@@ -22,8 +22,19 @@ def handle_scan():
     target = data.get('target')
     if not target:
         return jsonify({'error': 'No target provided'}), 400
-    scan_result = scan(target)
-    brute_force_result = start_brute_force(target)
+   
+    try:
+        if target.startswith('http://') or target.startswith('https://'):
+            hostname = target.split('://')[1].split('/')[0]
+        else:
+            hostname = target
+
+        target_ip = socket.gethostbyname(hostname)
+    except socket.gaierror as e:
+        return jsonify({'error': f'Error resolving target: {e}'}), 400
+    
+    scan_result = scan(target_ip)
+    brute_force_result = start_brute_force(target_ip)
     
     response = {
         'scan_result': scan_result,
