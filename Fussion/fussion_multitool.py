@@ -42,7 +42,7 @@ def handle_scan():
         'scan_vulnerabilities_found': scan_result['vulnerabilities_found'],
         'brute_force_successful': any(result['status'] == 'success' for result in brute_force_result)
     }
-    print("Operación de escaneo y fuerza bruta finalizada.")
+    
     return jsonify(response)
 
 API_KEY = os.getenv("API_KEY")
