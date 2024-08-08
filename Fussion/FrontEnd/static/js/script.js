@@ -76,7 +76,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 html += `</p></div>`;
             });
         }
+        html += '<p>¡Felicitaciones! El escaneo de puertos y la prueba de fuerza bruta han finalizado con éxito.</p>';
 
+        html += 'Para llevar la seguridad de tu sitio al siguiente nivel, te ofrecemos pruebas avanzadas de SQL injection y XSS.</p>';
+        html += 'Estas pruebas son críticas para identificar vulnerabilidades profundas y requieren autorización legal.</p>';
+        html += 'Si estás interesado en asegurar tu sitio al máximo, contáctanos en securescan360@gmail.com para más detalles.</p>';
         return html;
     }
 });

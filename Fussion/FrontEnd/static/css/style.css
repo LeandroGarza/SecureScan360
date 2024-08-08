@@ -10,8 +10,8 @@ body {
 h1 {
     color: #ffc44f;
     text-align: center;
-    margin-bottom: 50px;
-    font-size: 50px;
+    margin-bottom: 40px;
+    font-size: 40px;
 }
 
 form {
@@ -59,6 +59,7 @@ input[type="submit"]:hover, .submit-button:hover {
 
 #tasks {
     text-align: center;
+    font-size: 18px;
 }
 
 .task-container {
