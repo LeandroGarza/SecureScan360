@@ -94,11 +94,6 @@ if __name__ == "__main__":
     print("[+] Crawling the website to find URLs with parameters...")
     urls_to_test = find_urls_to_test(base_url, base_url)
 
-    # Agregar la ruta adicional a las URLs a probar
-    additional_path = "/filter?category=Gifts"
-    full_url_with_additional_path = base_url + additional_path
-    urls_to_test.add(full_url_with_additional_path)
-
     if urls_to_test:
         print("[+] Found the following URLs with parameters:")
         for url in urls_to_test:
