@@ -5,6 +5,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import time
 import random
+from urllib.parse import urlparse
 
 proxies = {'http': 'http://127.0.0.1:8081', 'https': 'http://127.0.0.1:8081'}
 
@@ -31,11 +32,19 @@ def find_urls_to_test(url, base_url):
 
     # Asegúrate de que la base_url no termine con un '/'
     base_url = base_url.rstrip('/')
+    parsed_base_url = urlparse(base_url)
 
     # Encuentra todos los enlaces en la página
     links = set()
     for a_tag in soup.find_all('a', href=True):
         href = a_tag['href']
+        
+        parsed_href = urlparse(href)
+        if parsed_href.netloc and parsed_href.netloc != parsed_base_url.netloc:
+            continue
+        
+        full_url = href if href.startswith('http') else base_url + href
+        
         if "Id" not in href:
             full_url = href if href.startswith('http') else base_url + href
             links.add(full_url)
