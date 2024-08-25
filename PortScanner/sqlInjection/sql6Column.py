@@ -3,7 +3,6 @@ import sys
 from bs4 import BeautifulSoup
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-import requests
 import time
 import random
 
@@ -29,6 +28,9 @@ def find_urls_to_test(url, base_url):
         return set()
 
     soup = BeautifulSoup(response.text, 'html.parser')
+
+    # Asegúrate de que la base_url no termine con un '/'
+    base_url = base_url.rstrip('/')
 
     # Encuentra todos los enlaces en la página
     links = set()
@@ -70,8 +72,8 @@ def exploit_sqli_column_number(url):
 if __name__ == "__main__":
     try:
         base_url = sys.argv[1].strip()
-        if not base_url.endswith('/'):
-            base_url += '/'
+        # Asegúrate de que la base_url no termine con '/'
+        base_url = base_url.rstrip('/')
     except IndexError:
         print("[-] Usage: %s <base_url>" % sys.argv[0])
         print("[-] Example: %s www.example.com" % sys.argv[0])
@@ -79,6 +81,11 @@ if __name__ == "__main__":
 
     print("[+] Crawling the website to find URLs with parameters...")
     urls_to_test = find_urls_to_test(base_url, base_url)
+
+    # Agregar la ruta adicional a las URLs a probar
+    additional_path = "/filter?category=Gifts"
+    full_url_with_additional_path = base_url + additional_path
+    urls_to_test.add(full_url_with_additional_path)
 
     if urls_to_test:
         print("[+] Found the following URLs with parameters:")
@@ -97,3 +104,4 @@ if __name__ == "__main__":
                 print(f"[-] URL not vulnerable: {test_url}")
     else:
         print("[-] No URLs with parameters found.")
+
