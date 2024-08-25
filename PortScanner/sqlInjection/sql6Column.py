@@ -36,12 +36,15 @@ def find_urls_to_test(url, base_url):
     links = set()
     for a_tag in soup.find_all('a', href=True):
         href = a_tag['href']
-        if "?" in href:  # Solo interesan URLs con parámetros
+        if "Id" not in href:
             full_url = href if href.startswith('http') else base_url + href
             links.add(full_url)
-        elif href.startswith('/'):  # Enlaces relativos, pueden tener parámetros ocultos
-            full_url = base_url + href
-            links.add(full_url)
+            if "?" in href:  # Solo interesan URLs con parámetros
+               full_url = href if href.startswith('http') else base_url + href
+               links.add(full_url)
+            elif href.startswith('/'):  # Enlaces relativos, pueden tener parámetros ocultos
+               full_url = base_url + href
+               links.add(full_url)
 
     # Si no encontró enlaces, intenta buscar enlaces ocultos en el código fuente
     if not links:
