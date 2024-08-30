@@ -22,15 +22,13 @@ def handle_scan():
     target = data.get('target')
     if not target:
         return jsonify({'error': 'No target provided'}), 400
-    
-    if not is_valid_ip(target) and not is_valid_domain(target):
-        return jsonify({'error': 'Ingrese una Ip o dominio valido'}), 400
    
     try:
-        if is_valid_ip(target):
-            target_ip = target
-        elif is_valid_domain(target):
-            hostname = target.split('://')[-1].split('/')[0]
+        hostname = extract_hostname(target)
+        
+        if is_valid_ip(hostname):
+            target_ip = hostname
+        elif is_valid_domain(hostname):
             target_ip = socket.gethostbyname(hostname)
         else:
             return jsonify({'error': 'Invalid IP or domain'}), 400
@@ -58,6 +56,11 @@ def is_valid_domain(domain):
         r"^(?:(?:https?|ftp):\/\/)?(?:[\w-]+\.)+[a-zA-Z]{2,7}$"
     )
     return domain_pattern.match(domain) is not None
+
+def extract_hostname(url):
+    if url.startswith(('http://', 'https://')):
+        return url.split('://', 1)[1].split('/', 1)[0]
+    return url
 
 
 
