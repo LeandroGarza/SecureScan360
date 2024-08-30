@@ -6,12 +6,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const loadingMessage = document.getElementById('loading-message');
         const tasksSection = document.getElementById('tasks');
         const resultsDiv = document.getElementById('results');
+        const messageDiv = document.getElementById('message');
         
         loadingMessage.style.display = 'block';
         tasksSection.style.display = 'none';
         resultsDiv.style.display = 'none';
+        messageDiv.style.display = 'none';
 
         const target = document.getElementById('target').value;
+
         fetch('http://127.0.0.1:5000/scan', {
             method: 'POST',
             headers: {
@@ -21,13 +24,22 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            resultsDiv.innerHTML = formatResults(data);
+            if (data.error) {
+                messageDiv.innerText = data.error;
+                messageDiv.style.display = 'block';
+                messageDiv.style.color = 'red';
+            } else {
+                resultsDiv.innerHTML = formatResults(data);
+                resultsDiv.style.display = 'block';
+            }
             loadingMessage.style.display = 'none';
-            resultsDiv.style.display = 'block';
         })
         .catch(error => {
             console.error('Error:', error);
             loadingMessage.style.display = 'none';
+            messageDiv.innerText = 'Error al realizar la solicitud.';
+            messageDiv.style.display = 'block';
+            messageDiv.style.color = 'red';
         });
     });
 
