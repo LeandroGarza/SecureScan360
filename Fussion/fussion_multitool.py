@@ -3,7 +3,7 @@ from flask_cors import CORS
 import nmap
 import paramiko, sys, os, termcolor
 import threading, time
-import requests, socket
+import requests, socket, re
 
 app = Flask(__name__, static_folder='FrontEnd/static', template_folder='FrontEnd/templates')
 CORS(app)
@@ -22,14 +22,18 @@ def handle_scan():
     target = data.get('target')
     if not target:
         return jsonify({'error': 'No target provided'}), 400
+    
+    if not is_valid_ip(target) and not is_valid_domain(target):
+        return jsonify({'error': 'Ingrese una Ip o dominio valido'}), 400
    
     try:
-        if target.startswith('http://') or target.startswith('https://'):
-            hostname = target.split('://')[1].split('/')[0]
+        if is_valid_ip(target):
+            target_ip = target
+        elif is_valid_domain(target):
+            hostname = target.split('://')[-1].split('/')[0]
+            target_ip = socket.gethostbyname(hostname)
         else:
-            hostname = target
-
-        target_ip = socket.gethostbyname(hostname)
+            return jsonify({'error': 'Invalid IP or domain'}), 400
     except socket.gaierror as e:
         return jsonify({'error': f'Error resolving target: {e}'}), 400
     
@@ -44,6 +48,18 @@ def handle_scan():
     }
     print("Operación de escaneo y fuerza bruta finalizada.")
     return jsonify(response)
+
+def is_valid_ip(ip):
+    pattern = r'^(\d{1,3}\.){3}\d{1,3}$'
+    return re.match(pattern, ip) is not None and all(0 <= int(octet) <= 255 for octet in ip.split('.'))
+
+def is_valid_domain(domain):
+    domain_pattern = re.compile(
+        r"^(?:(?:https?|ftp):\/\/)?(?:[\w-]+\.)+[a-zA-Z]{2,7}$"
+    )
+    return domain_pattern.match(domain) is not None
+
+
 
 API_KEY = os.getenv("API_KEY")
 
