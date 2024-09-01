@@ -39,7 +39,7 @@ Cada uno de estos procesos es detallado en los reportes generados, lo que permit
 Las contribuciones son bienvenidas. Si deseas colaborar, por favor abre un "issue" o envía un "pull request" con tus mejoras o nuevas funcionalidades.
 
 # Licencia
-Este proyecto está licenciado bajo la licencia MIT. Puedes ver más detalles en el archivo [LICENSE](License).
+Este proyecto está licenciado bajo la licencia MIT. Puedes ver más detalles en el archivo [LICENSE](License.txt).
 
 
 
