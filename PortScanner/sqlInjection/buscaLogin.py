@@ -5,6 +5,7 @@ def find_login_url(targets):
     common_login_paths = [
         '/login',
         '/signin',
+        '/ingresar',
         '/auth',
         '/user/login',
         '/users/login',
@@ -17,7 +18,8 @@ def find_login_url(targets):
         '/login.html',
         '/auth/login',
         '/authenticate',
-        '/member/login'
+        '/member/login',
+        'es-AR/login'
     ]
     
     if not targets.startswith(('http://', 'https://')):
@@ -44,6 +46,10 @@ def find_login_url(targets):
     return None
 
 if __name__ == "__main__":
+    # Ignorar advertencias sobre SSL
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    
     targets = input('Escriba el dominio o ip a escanear: ')
     login_url = find_login_url(targets)
     if login_url:

