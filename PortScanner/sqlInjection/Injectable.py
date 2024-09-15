@@ -81,18 +81,17 @@ def find_urls_to_test(url, base_url):
         elif href.startswith('http'):
             full_url = href
         else:
-            full_url = f"{base_url}/{href}"  # Ensure a slash is added between base and path
+            full_url = f"{base_url}/{href}"
+            
+        if "Id" not in href:
+            links.add(full_url)
+            if "?" in href:
+              links.add(full_url)
+            elif href.startswith('/'):
+               links.add(full_url)
         
-        links.add(full_url)
-        #full_url = href if href.startswith('http') else base_url + href
-        
-        #if "Id" not in href:
-        #    links.add(full_url)
-        #    if "?" in href:
-        #       links.add(full_url)
-        #    elif href.startswith('/'):
-        #       links.add(full_url)
-
+        #links.add(full_url)
+      
     if not links:
         print("[!] No parameterized URLs found, searching deeper in the page source...")
         scripts = soup.find_all('script')
