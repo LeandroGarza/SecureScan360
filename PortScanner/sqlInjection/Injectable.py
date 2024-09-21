@@ -285,7 +285,7 @@ def exploit_sqli_users_table(url):
     if try_payload(second_payload):
         return True
 
-    print(f"[-] No se pudieron extraer las credenciales del administrador")
+    print(f"[-] Failed to retrieve the administrator credentials.")
     return False
 
 def exploit_sqli(url):
