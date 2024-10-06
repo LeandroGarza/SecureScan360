@@ -235,7 +235,7 @@ def submit_xss_payloads_to_forms(url):
             input_name = input_tag.get('name') or f'temp_name_{i}'
             form_data[input_name] = random.choice(xss_payloads)
 
-        print(f"Prepared form data for container: {form_data}")
+        #print(f"Prepared form data for container: {form_data}")
 
         for payload in xss_payloads:
             r = requests.get(url, params=form_data, verify=False, proxies=proxies)
