@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
             data.brute_force_result.forEach(result => {
                 html += `<div class="result-block"><p><strong>Usuario:</strong> ${result.username}, <strong>Contraseña:</strong> ${result.password}, `;
                 if (result.status === 'success') {
-                    html += `<span class="status-success">Estado: Éxito</span>`;
+                    html += `<span class="status-success">Estado: Éxito</span> en `+ result.service;
                 } else if (result.status === 'failure') {
                     html += `<span class="status-failure">Estado: Contraseña Incorrecta</span>`;
                 } else if (result.status === 'ssh_exception') {
