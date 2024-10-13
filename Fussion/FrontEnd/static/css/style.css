@@ -198,12 +198,3 @@ input[type="submit"]:hover, .submit-button:hover {
 #loading-message i {
     margin-right: 10px;
 }
-
-.message-block {
-    padding: 10px;
-    margin-bottom: 5px;
-    border: 1px solid #333;
-    background-color: #1c1c1c;
-    color: #fff;
-    border-radius: 5px;
-}
