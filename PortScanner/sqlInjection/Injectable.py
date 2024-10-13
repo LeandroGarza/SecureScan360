@@ -69,6 +69,20 @@ def get_response(url, retries=3):
     return None
 
 def is_ip_address(url):
+    """
+    Checks if the given URL is in the format of an IPv4 address.
+
+    Args:
+        url (str): The string to be analyzed to determine if it represents an IP address.
+
+    Returns:
+        bool: Returns True if the URL matches the IPv4 address pattern, False otherwise.
+
+    Description:
+        - Compiles a regular expression that matches an IPv4 address format (four groups of 1 to 3 digits separated by dots).
+        - Uses this pattern to check if the input string is a valid IPv4 address.
+        - Returns a boolean indicating whether the input matches the pattern.
+    """
     ip_pattern = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
     return ip_pattern.match(url) is not None
 
@@ -146,6 +160,28 @@ def find_urls_to_test(url, base_url):
     return links
 
 def get_forms_and_inputs(response, max_attempts=3):
+    """
+    Extracts forms and containers with input elements from the HTML response.
+
+    Args:
+        response (requests.Response): The HTTP response object containing the page content to be analyzed.
+        max_attempts (int, optional): The maximum number of attempts to retrieve forms and input elements 
+                                      if they are not found on the first try. Defaults to 3.
+
+    Returns:
+        dict: A dictionary with two keys:
+              - 'forms': A list of form elements found in the HTML.
+              - 'containers_with_inputs': A list of containers (div, section, article) that include input elements.
+
+    Description:
+        - Parses the HTML content from the provided response using BeautifulSoup.
+        - Searches for all `<form>` elements in the HTML.
+        - Additionally looks for containers (e.g., <div>, <section>, <article>) that have any `<input>`, 
+          `<textarea>`, or `<button>` elements within them.
+        - If no forms or containers with inputs are found, it retries the process up to `max_attempts` times, 
+          with a 1-second delay between each attempt.
+        - Returns a dictionary containing the list of forms and containers with input elements.
+    """
     soup = BeautifulSoup(response.text, 'html.parser')
 
     forms = soup.find_all('form')
@@ -175,6 +211,25 @@ def get_forms_and_inputs(response, max_attempts=3):
     return result
 
 def exploit_xss_url(url):
+    """
+    Attempts to exploit a possible XSS vulnerability by injecting common XSS payloads into the URL.
+
+    Args:
+        url (str): The target URL where XSS payloads will be injected and tested.
+
+    Returns:
+        bool: Returns True if a vulnerability is found, False otherwise.
+
+    Description:
+        - Iterates over a predefined list of XSS payloads, injecting each one as a query parameter in the URL.
+        - Sends a GET request to the modified URL.
+        - Checks if the payload appears in the page content, which indicates a potential XSS vulnerability.
+        - Analyzes the HTML response for specific indicators of vulnerability, such as reflected error messages, 
+          JavaScript events like `alert`, `onerror`, or `onload`.
+        - If a vulnerability is found, it prints the payload and returns True.
+        - If an SSL error or request-related error occurs during the process, it handles the exception and prints an error message.
+        - If no vulnerability is found after all payloads are tested, it returns False.
+    """
     
     for payload in xss_payloads:
         target_url = f"{url}?input={payload}"
@@ -210,6 +265,25 @@ def exploit_xss_url(url):
 
 
 def submit_xss_payloads_to_forms(url):
+    """
+    Submits XSS payloads to forms and containers on the target URL to detect XSS vulnerabilities.
+
+    Args:
+        url (str): The target URL where forms and containers will be analyzed and tested for XSS vulnerabilities.
+
+    Returns:
+        bool: Returns True if a vulnerability is found, False otherwise.
+
+    Description:
+        - Retrieves the page content for the specified URL using the `get_response` function.
+        - Extracts all forms and containers with input elements from the HTML using the `get_forms_and_inputs` function.
+        - If no forms or input containers are found, it prints a message and returns False.
+        - Iterates over all forms, prepares form data by injecting random XSS payloads into input fields, and submits the form.
+        - Depending on the form method (`POST` or `GET`), it sends the request and checks if the payload is reflected in the response.
+        - Repeats the process for containers with input elements (e.g., `<div>`, `<section>`).
+        - If an XSS vulnerability is found, it prints the payload and returns True.
+        - If no vulnerability is found after all forms and containers are tested, it returns False.
+    """
     response = get_response(url)
     if not response:
         return False
