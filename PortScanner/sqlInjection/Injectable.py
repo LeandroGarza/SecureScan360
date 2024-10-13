@@ -580,7 +580,7 @@ if __name__ == "__main__":
         for url in urls_to_test:
             print(url)
 
-        print("\n[+] Testing each URL for SQL Injection vulnerabilities...")
+        print("\n[+] Testing each URL for SQL Injection and XSS vulnerabilities.")
 
         for test_url in urls_to_test:
             print(f"\n[+] Testing URL: {test_url}")
