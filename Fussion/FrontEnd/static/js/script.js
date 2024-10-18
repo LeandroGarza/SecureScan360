@@ -7,7 +7,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const tasksSection = document.getElementById('tasks');
         const resultsDiv = document.getElementById('results');
         const messageDiv = document.getElementById('message');
-        
+        const realTimeOutput = document.getElementById('real-time-output');
+
         loadingMessage.style.display = 'block';
         tasksSection.style.display = 'none';
         resultsDiv.style.display = 'none';
@@ -22,7 +23,12 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({ target: target })
         })
-        .then(response => response.json())
+        .then(response => {
+            if (response.status === 403) {
+                throw new Error(`[+] Access to ${target} was blocked with a 403 (Forbidden) code.`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.error) {
                 messageDiv.innerText = data.error;
@@ -41,15 +47,21 @@ document.addEventListener('DOMContentLoaded', function() {
             messageDiv.style.display = 'block';
             messageDiv.style.color = 'red';
         });
+
+        const eventSource = new EventSource('http://127.0.0.1:5000/events');
+        eventSource.onmessage = function(event) {
+            realTimeOutput.innerHTML += `<p>${event.data}</p>`;
+        };
     });
 
     function formatResults(data) {
+
         let html = '<h2>Resultados del Escaneo</h2>';
-        
+
+        html += '<h3>Prueba de Escaneo de Puertos:</h3>';
         if (!data.scan_vulnerabilities_found) {
             html += '<p>No se encontraron vulnerabilidades en los puertos escaneados.</p>';
         } else {
-            html += '<h3>Escaneo de Puertos:</h3>';
             data.scan_result.results.forEach(hostResult => {
                 html += `<div class="result-block"><p><strong>Host:</strong> ${hostResult.host}</p>`;
                 hostResult.protocols.forEach(protocol => {
@@ -68,14 +80,14 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
+        html += '<h3>Prueba de Fuerza Bruta:</h3>';
         if (!data.brute_force_successful) {
             html += '<p>Intentamos realizar fuerza bruta pero no lo logramos debido a que su sistema es seguro.</p>';
         } else {
-            html += '<h3>Resultados de la Fuerza Bruta:</h3>';
             data.brute_force_result.forEach(result => {
                 html += `<div class="result-block"><p><strong>Usuario:</strong> ${result.username}, <strong>Contraseña:</strong> ${result.password}, `;
                 if (result.status === 'success') {
-                    html += `<span class="status-success">Estado: Éxito</span> en `+ result.service;
+                    html += `<span class="status-success">Estado: Éxito</span> en ${result.service}`;
                 } else if (result.status === 'failure') {
                     html += `<span class="status-failure">Estado: Contraseña Incorrecta</span>`;
                 } else if (result.status === 'ssh_exception') {
@@ -88,11 +100,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 html += `</p></div>`;
             });
         }
-        html += '<p>¡Felicitaciones! El escaneo de puertos y la prueba de fuerza bruta han finalizado con éxito.</p>';
 
-        html += 'Para llevar la seguridad de tu sitio al siguiente nivel, te ofrecemos pruebas avanzadas de SQL injection y XSS.</p>';
-        html += 'Estas pruebas son críticas para identificar vulnerabilidades profundas y requieren autorización legal.</p>';
-        html += 'Si estás interesado en asegurar tu sitio al máximo, contáctanos en securescan360@gmail.com para más detalles.</p>';
+        html += '<h3>Prueba de SQL Injection:</h3>';
+        if (!data.sql_vulnerabilities_found) {
+            html += '<p>No se encontraron vulnerabilidades de sql en los puertos escaneados.</p>';
+        } else {
+            data.sql_injection_results.forEach(result => {
+                html += `<div class="result-block"><p><strong>URL Vulnerable:</strong> ${result.url}</p>`;
+                html += `<p><strong>Payload:</strong> ${result.payloads.join(', ')}</p>`;
+                
+                if (result.payloads.length > 0) {
+                    html += `<p class="vulnerable">¡Vulnerable a SQL Injection!</p>`;
+                } else {
+                    html += `<p>No vulnerable a SQL Injection</p>`;
+                }
+                html += `</div>`;
+            });
+        }
+        
+        html += '<h3>Prueba de XSS:</h3>';
+        if (data.xss_results && data.xss_results.length > 0) {
+            data.xss_results.forEach(result => {
+                html += `<div class="result-block"><p><strong>URL:</strong> ${result.url}</p>`;
+                if (result.vulnerable) {
+                    html += `<p class="vulnerable">¡Vulnerable a XSS!</p>`;
+                } else {
+                    html += `<p>No vulnerable a XSS</p>`;
+                }
+                html += `</div>`;
+            });
+        }
+
+        html += '<p>¡Felicitaciones! El escaneo de puertos, la prueba de fuerza bruta, el sql injection y xss han finalizado con éxito.</p>';
         return html;
     }
 });
