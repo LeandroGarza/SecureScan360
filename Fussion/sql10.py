@@ -164,11 +164,11 @@ def handle_scan():
                     "payloads": sqli_result
                 })
         return jsonify({
-            "scan_vulnerabilities_found": len(results) > 0,
+            "sql_vulnerabilities_found": len(results) > 0,
             "sql_injection_results": results
         })
     else:
         return jsonify({"error": "No URLs with parameters found."})
-
+    
 if __name__ == "__main__":
     app.run(debug=True)
