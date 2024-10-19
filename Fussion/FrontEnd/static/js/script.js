@@ -124,10 +124,19 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         
             if (data.columns_detected_found) {
-                html += '<h4>¡Pudimos detectar el numero de columnas de su base de datos!:</h4>';
+                html += '<h4>¡Pudimos detectar el numero de columnas de su base de datos!</h4>';
                 data.column_detection_results.forEach(result => {
                     html += `<div class="result-block"><p><strong>URL relacionada:</strong> ${result.url}</p>`;
                     html += `<p><strong>Número de columnas detectadas:</strong> ${result.columns_detected}</p>`;
+                    html += `</div>`;
+                });
+            }
+
+            if (data.admin_password_found) {
+                html += '<h4>Contraseña de Administrador Encontrada:</h4>';
+                data.admin_password_results.forEach(result => {
+                    html += `<div class="result-block"><p><strong>URL:</strong> ${result.url}</p>`;
+                    html += `<p><strong>Contraseña del Administrador:</strong> ${result.admin_password}</p>`;
                     html += `</div>`;
                 });
             }
