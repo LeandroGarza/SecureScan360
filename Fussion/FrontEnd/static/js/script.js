@@ -124,11 +124,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         
             if (data.columns_detected_found) {
-                html += '<h4>Número de Columnas Detectadas:</h4>';
+                html += '<h4>¡Pudimos detectar el numero de columnas de su base de datos!:</h4>';
                 data.column_detection_results.forEach(result => {
-                    html += `<div class="result-block"><p><strong>URL:</strong> ${result.url}</p>`;
+                    html += `<div class="result-block"><p><strong>URL relacionada:</strong> ${result.url}</p>`;
                     html += `<p><strong>Número de columnas detectadas:</strong> ${result.columns_detected}</p>`;
-                    html += `<p class="vulnerable">¡Posible vulnerabilidad por número de columnas detectadas!</p>`;
                     html += `</div>`;
                 });
             }
