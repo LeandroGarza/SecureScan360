@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        if (!data.sql_vulnerabilities_found && !data.columns_detected_found) {
+        if (!data.sql_vulnerabilities_found && !data.columns_detected_found && !data.admin_password_found && !data.database_version_found) {
             html += '<p>No se encontraron vulnerabilidades de sql en los puertos escaneados.</p>';
         } else {
             if (data.sql_vulnerabilities_found) {
@@ -138,6 +138,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     html += `<div class="result-block"><p><strong>URL:</strong> ${result.url}</p>`;
                     html += `<p><strong>Contraseña del Administrador:</strong> ${result.admin_password}</p>`;
                     html += `</div>`;
+                });
+            }
+
+            if (data.database_version_found) {
+                html += '<h4> Se encontro la versión de la Base de Datos:</h4>';
+                data.database_version_results.forEach(result => {
+                    html += `<div class="result-block"><p><strong>URL:</strong> ${result.url}</p>`;
+                    html += `<p><strong>Versión de la Base de Datos:</strong> ${result.database_version}</p></div>`;
                 });
             }
         }
