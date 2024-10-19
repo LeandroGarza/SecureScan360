@@ -106,13 +106,22 @@ document.addEventListener('DOMContentLoaded', function() {
             html += '<p>No se encontraron vulnerabilidades de sql en los puertos escaneados.</p>';
         } else {
             data.sql_injection_results.forEach(result => {
+
                 html += `<div class="result-block"><p><strong>URL Vulnerable:</strong> ${result.url}</p>`;
-                html += `<p><strong>Payload:</strong> ${result.payloads.join(', ')}</p>`;
                 
-                if (result.payloads.length > 0) {
-                    html += `<p class="vulnerable">¡Vulnerable a SQL Injection!</p>`;
-                } else {
-                    html += `<p>No vulnerable a SQL Injection</p>`;
+                if (result.payloads) {
+                    html += `<p><strong>Payload:</strong> ${result.payloads.join(', ')}</p>`;
+                    
+                    if (result.payloads.length > 0) {
+                        html += `<p class="vulnerable">¡Vulnerable a SQL Injection!</p>`;
+                    } else {
+                        html += `<p>No vulnerable a SQL Injection</p>`;
+                    }
+                }
+                // Si el resultado contiene la detección de columnas
+                if (result.columns_detected) {
+                    html += `<p><strong>Número de columnas detectadas:</strong> ${result.columns_detected}</p>`;
+                    html += `<p class="vulnerable">¡Posible vulnerabilidad por número de columnas detectadas!</p>`;
                 }
                 html += `</div>`;
             });
