@@ -105,26 +105,25 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!data.sql_vulnerabilities_found) {
             html += '<p>No se encontraron vulnerabilidades de sql en los puertos escaneados.</p>';
         } else {
-            data.sql_injection_results.forEach(result => {
-
-                html += `<div class="result-block"><p><strong>URL Vulnerable:</strong> ${result.url}</p>`;
-                
-                if (result.payloads) {
+            if (data.sql_vulnerabilities_found) {
+                html += '<h4>Vulnerabilidades de SQL Injection:</h4>';
+                data.sql_injection_results.forEach(result => {
+                    html += `<div class="result-block"><p><strong>URL Vulnerable:</strong> ${result.url}</p>`;
                     html += `<p><strong>Payload:</strong> ${result.payloads.join(', ')}</p>`;
-                    
-                    if (result.payloads.length > 0) {
-                        html += `<p class="vulnerable">¡Vulnerable a SQL Injection!</p>`;
-                    } else {
-                        html += `<p>No vulnerable a SQL Injection</p>`;
-                    }
-                }
-                // Si el resultado contiene la detección de columnas
-                if (result.columns_detected) {
+                    html += `<p class="vulnerable">¡Vulnerable a SQL Injection!</p>`;
+                    html += `</div>`;
+                });
+            }
+        
+            if (data.columns_detected_found) {
+                html += '<h4>Número de Columnas Detectadas:</h4>';
+                data.column_detection_results.forEach(result => {
+                    html += `<div class="result-block"><p><strong>URL:</strong> ${result.url}</p>`;
                     html += `<p><strong>Número de columnas detectadas:</strong> ${result.columns_detected}</p>`;
                     html += `<p class="vulnerable">¡Posible vulnerabilidad por número de columnas detectadas!</p>`;
-                }
-                html += `</div>`;
-            });
+                    html += `</div>`;
+                });
+            }
         }
         
         html += '<h3>Prueba de XSS:</h3>';
