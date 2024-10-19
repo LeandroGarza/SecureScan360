@@ -185,11 +185,22 @@ def handle_scan():
     
     base_url = request.json.get('target').strip()
     base_url = base_url.rstrip('/')
+    
+    status_messages = []
+    results = []
+    
+    print("[+] Inspecting the different paths for the entered page...")
     urls_to_test = find_urls_to_test(base_url, base_url)
     
     if urls_to_test:
-        results = []
+        for url in urls_to_test:
+            print(url)
+            status_messages.append(f"{url}")
+        
+        print("\n[+] Testing each URL for SQL Injection vulnerabilities.")
+        
         for test_url in urls_to_test:
+            print(f"\n[+] Testing URL: {test_url}")
             sqli_result = exploit_sqli(test_url)
             num_col = exploit_sqli_column_number(test_url)
             if sqli_result:
@@ -208,6 +219,7 @@ def handle_scan():
                 print("[-] URL not vulnerable to SQL injection")
             
         return jsonify({
+            "status_messages": status_messages,
             "sql_vulnerabilities_found": any('payloads' in result for result in results),
             "columns_detected_found": any('columns_detected' in result for result in results),
             "sql_injection_results": [r for r in results if 'payloads' in r],
