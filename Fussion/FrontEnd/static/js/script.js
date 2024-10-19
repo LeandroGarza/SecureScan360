@@ -102,11 +102,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         html += '<h3>Prueba de SQL Injection:</h3>';
-        if (!data.sql_vulnerabilities_found) {
+
+        if (data.status_messages) {
+            html += '<h4>URLs relacionadas a escanear:</h4>';
+            data.status_messages.forEach(message => {
+                html += `<p>${message}</p>`;
+            });
+        }
+
+        if (!data.sql_vulnerabilities_found && !data.columns_detected_found) {
             html += '<p>No se encontraron vulnerabilidades de sql en los puertos escaneados.</p>';
         } else {
             if (data.sql_vulnerabilities_found) {
-                html += '<h4>Vulnerabilidades de SQL Injection:</h4>';
+                html += '<h4>Vulnerabilidades Encontradas:</h4>';
                 data.sql_injection_results.forEach(result => {
                     html += `<div class="result-block"><p><strong>URL Vulnerable:</strong> ${result.url}</p>`;
                     html += `<p><strong>Payload:</strong> ${result.payloads.join(', ')}</p>`;
@@ -125,7 +133,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
         }
-        
+
         html += '<h3>Prueba de XSS:</h3>';
         if (data.xss_results && data.xss_results.length > 0) {
             data.xss_results.forEach(result => {
