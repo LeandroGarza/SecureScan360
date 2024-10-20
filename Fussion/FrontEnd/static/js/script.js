@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const tasksSection = document.getElementById('tasks');
         const resultsDiv = document.getElementById('results');
         const messageDiv = document.getElementById('message');
-        const realTimeOutput = document.getElementById('real-time-output');
 
         loadingMessage.style.display = 'block';
         tasksSection.style.display = 'none';
@@ -47,11 +46,6 @@ document.addEventListener('DOMContentLoaded', function() {
             messageDiv.style.display = 'block';
             messageDiv.style.color = 'red';
         });
-
-        const eventSource = new EventSource('http://127.0.0.1:5000/events');
-        eventSource.onmessage = function(event) {
-            realTimeOutput.innerHTML += `<p>${event.data}</p>`;
-        };
     });
 
     function formatResults(data) {
@@ -88,7 +82,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 html += `<div class="result-block"><p><strong>Usuario:</strong> ${result.username}, <strong>Contraseña:</strong> ${result.password}, `;
                 if (result.status === 'success') {
                     html += `<span class="status-success">Estado: Éxito</span> en ${result.service}`;
-                } else if (result.status === 'failure') {
+                } 
+                /*else if (result.status === 'failure') {
                     html += `<span class="status-failure">Estado: Contraseña Incorrecta</span>`;
                 } else if (result.status === 'ssh_exception') {
                     html += `<span class="status-error">Estado: Error SSH</span><p>Error: ${result.error}</p>`;
@@ -96,7 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     html += `<span class="status-error">Estado: Conexión Fallida</span><p>Error: ${result.error}</p>`;
                 } else {
                     html += `<span class="status-error">Estado: Error Desconocido</span><p>Error: ${result.error || 'Desconocido'}</p>`;
-                }
+                }*/
                 html += `</p></div>`;
             });
         }
