@@ -46,8 +46,10 @@ def get_response(url, retries=3):
             if r.status_code == 200:
                 return r
             elif r.status_code == 403:
-                return f"Secure: access to {url} was blocked with a 403 (Forbidden) code."
+                print(f"[+] The website is secure: access to this URL was blocked with a 403 (Forbidden) code.")
+                return None
         except (requests.RequestException, SSLError, ConnectionError) as e:
+            print(f"Error fetching {url}: {str(e)}")
             time.sleep(random.uniform(1, 3))
     return None
 
@@ -65,8 +67,13 @@ def find_urls_to_test(url, base_url):
     response = get_response(url)
     if not response:
         return set()
+    
+    if hasattr(response, 'text'):
+        html_content = response.text
+    else:
+        html_content = response
 
-    soup = BeautifulSoup(response.text, 'html.parser')
+    soup = BeautifulSoup(html_content, 'html.parser')
     base_url = base_url.rstrip('/')
     parsed_base_url = urlparse(base_url)
     links = set()
@@ -192,7 +199,6 @@ def submit_xss_payloads_to_forms(url):
         for i, input_tag in enumerate(inputs):
             input_name = input_tag.get('name') or f'temp_name_{i}'
             form_data[input_name] = random.choice(xss_payloads)
-            results.append({"container": "input_container", "payload": payload})
 
         #print(f"Prepared form data for container: {form_data}")
 
@@ -200,7 +206,7 @@ def submit_xss_payloads_to_forms(url):
             r = requests.get(url, params=form_data, verify=False, proxies=proxies)
             if payload in r.text:
                 print(Fore.GREEN + f"[+] XSS vulnerability found in container with payload: {payload}")
-                return True
+                results.append({"container": "input_container", "payload": payload})
 
     if not results:
         print("[-] No XSS vulnerabilities found in forms or containers.")
@@ -386,7 +392,7 @@ def exploit_database_version(url):
                     status_code = e.response.status_code
 
                     if status_code == 403:
-                        print(f"[+] Congratulations, your website is secure: access to this URL was blocked with a 403 (Forbidden) code.")
+                        print(f"[+] The website is secure: access to this URL was blocked with a 403 (Forbidden) code.")
                         continue
                     elif status_code == 500:
                         print(Fore.GREEN + f"[+] Potential vulnerability found with payload: {payload}")
@@ -620,7 +626,7 @@ def handle_scan():
     status_messages = []
     results = []
     
-    print("[+] Inspecting the different paths for the entered page...")
+    print("[+]\n Inspecting the different paths for the entered page...")
     urls_to_test = find_urls_to_test(base_url, base_url)
     
     if urls_to_test:
