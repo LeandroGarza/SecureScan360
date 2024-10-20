@@ -151,16 +151,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         html += '<h3>Prueba de XSS:</h3>';
-        if (data.xss_results && data.xss_results.length > 0) {
-            data.xss_results.forEach(result => {
-                html += `<div class="result-block"><p><strong>URL:</strong> ${result.url}</p>`;
-                if (result.vulnerable) {
+        if (!data.xss_vulnerabilities_found && !data.xss_form_vulnerabilities_found) {
+            html += '<p>No se encontraron vulnerabilidades de XSS en los puertos escaneados.</p>';
+        } else {
+            if (data.xss_vulnerabilities_found) {
+                html += '<h4>Vulnerabilidades XSS Encontradas en URLs:</h4>';
+                data.xss_results.forEach(result => {
+                    html += `<div class="result-block"><p><strong>URL Vulnerable:</strong> ${result.url}</p>`;
+                    html += `<p><strong>Payload Usado:</strong> ${result.xss_payload}</p>`;
                     html += `<p class="vulnerable">¡Vulnerable a XSS!</p>`;
-                } else {
-                    html += `<p>No vulnerable a XSS</p>`;
-                }
-                html += `</div>`;
-            });
+                    html += `</div>`;
+                });
+            }
+
+            if (data.xss_form_vulnerabilities_found) {
+                html += '<h4>Vulnerabilidades XSS Encontradas en Formularios:</h4>';
+                data.xss_form_results.forEach(result => {
+                    html += `<div class="result-block"><p><strong>URL:</strong> ${result.url}</p>`;
+                    html += `<p><strong>Payload en Formulario Usado:</strong> ${result.xss_form_payload}</p>`;
+                    html += `<p class="vulnerable">¡Formulario Vulnerable a XSS!</p>`;
+                    html += `</div>`;
+                });
+            }
         }
 
         html += '<p>¡Felicitaciones! El escaneo de puertos, la prueba de fuerza bruta, el sql injection y xss han finalizado con éxito.</p>';
