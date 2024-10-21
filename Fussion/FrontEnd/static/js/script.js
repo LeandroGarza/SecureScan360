@@ -80,10 +80,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!data.brute_force_successful) {
             html += '<p>Intentamos realizar fuerza bruta pero no lo logramos debido a que su sistema es seguro.</p>';
         } else {
+            html += `<h4>🔍 Credenciales encontradas durante la prueba de fuerza bruta:</h4>`;
             data.brute_force_result.forEach(result => {
-                html += `<div class="result-block"><p><strong>Usuario:</strong> ${result.username}, <strong>Contraseña:</strong> ${result.password}, `;
+                html += `<div class="result-block"><p><strong>🔑 Usuario:</strong> "${result.username}" <strong>🔒 Contraseña:</strong> "${result.password}" `;
                 if (result.status === 'success') {
-                    html += `<span class="status-success">Estado: Éxito</span> en ${result.service}`;
+                    html += `en servicio ${result.service} que corre en puerto ${result.port}. `;
                 } 
                 /*else if (result.status === 'failure') {
                     html += `<span class="status-failure">Estado: Contraseña Incorrecta</span>`;
