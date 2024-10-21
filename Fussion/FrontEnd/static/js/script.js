@@ -61,13 +61,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 hostResult.protocols.forEach(protocol => {
                     html += `<p><strong>Protocolo:</strong> ${protocol.protocol}</p>`;
                     protocol.ports.forEach(port => {
-                        html += `<div class="port-info"><p><strong>Puerto:</strong> ${port.port}, <strong>Producto:</strong> ${port.product}, <strong>Versión:</strong> ${port.version}</p>`;
-                        if (port.vulnerable) {
-                            html += `<p class="vulnerable">&nbsp;Puerto Vulnerable!</p>`;
-                        } else {
-                            html += `<p>&nbsp;Puerto No Vulnerable</p>`;
-                        }
+                        if (port.product || port.version) {
+                            html += `<div class="port-info"><p><strong>Puerto:</strong> ${port.port}, <strong>Producto:</strong> ${port.product}, <strong>Versión:</strong> ${port.version}</p>`;
+                            if (port.vulnerable) {
+                                html += `<p class="vulnerable">&nbsp;Puerto Vulnerable!</p>`;
+                            } else {
+                                html += `<p>&nbsp;Puerto No Vulnerable</p>`;
+                            }
                         html += `</div>`;
+                        }
                     });
                 });
                 html += `</div>`;
