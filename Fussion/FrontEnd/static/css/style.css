@@ -175,6 +175,10 @@ input[type="submit"]:hover, .submit-button:hover {
     color: rgb(255, 255, 255);
 }
 
+#message:empty, #results:empty {
+    display: none;
+}
+
 .result-block hr {
     border: 0;
     border-top: 1px solid #444;
