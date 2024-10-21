@@ -21,23 +21,23 @@
         <div class="task-container">
             <div class="task">
                 <h3>Escaneo de Puertos</h3>
-                <p>Identifica puertos abiertos en un sistema y los servicios que están siendo ejecutados.</p>
+                <p>Identifica puertos abiertos en un sistema y los servicios que están siendo ejecutados en estos puertos.</p>
             </div>
             <div class="task">
                 <h3>Vulnerabilidad de Puertos</h3>
-                <p>Detecta posibles vulnerabilidades en los servicios que corren en los puertos abiertos.</p>
+                <p>Identifica riesgos de seguridad en los servicios asociados a puertos abiertos. Detectando aquellos que puedan ser explotados.</p>
             </div>
             <div class="task">
                 <h3>Fuerza Bruta</h3>
-                <p>Intenta descifrar contraseñas mediante la prueba de todas las combinaciones posibles.</p>
+                <p>Intenta descifrar contraseñas mediante la prueba de las combinaciones con mayor posibilidad de exito.</p>
             </div>
             <div class="task">
                 <h3>SQL injection</h3>
-                <p>Se trata de interferir en las consultas que hace la aplicacion web a su base de datos.</p>
+                <p>Manipula consultas SQL para obtener acceso no autorizado o comprometer la integridad de las bases de datos.</p>
             </div>
             <div class="task">
                 <h3>XSS</h3>
-                <p>Se intenta insertar codigo malicioso al sitio web.</p>
+                <p>Inyecta código malicioso en páginas web, lo que permite alterar su comportamiento o afectar a los usuarios.</p>
             </div>
         </div>
     </section>
@@ -48,10 +48,6 @@
 
     <div id="message"></div>
     <div id="results"></div>
-
-    <div id="real-time-results">
-        <div id="real-time-output"></div>
-    </div>
 
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
