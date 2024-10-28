@@ -642,41 +642,41 @@ def handle_scan():
         for test_url in urls_to_test:
             print(f"\n[+] Testing URL: {test_url}")
             
-            # sqli_result = exploit_sqli(test_url)
-            # num_col = exploit_sqli_column_number(test_url)
-            # admin_found, admin_password = exploit_sqli_users_table(test_url)
-            # db_version = exploit_database_version(test_url)
+            sqli_result = exploit_sqli(test_url)
+            num_col = exploit_sqli_column_number(test_url)
+            admin_found, admin_password = exploit_sqli_users_table(test_url)
+            db_version = exploit_database_version(test_url)
             xss_results = exploit_xss_url(test_url)
             xss_form_vulnerabilities = submit_xss_payloads_to_forms(test_url)
             
-            # if sqli_result:
-            #     results.append({
-            #         "url": test_url,
-            #         "payloads": sqli_result
-            #     })
+            if sqli_result:
+                results.append({
+                    "url": test_url,
+                    "payloads": sqli_result
+                })
                 
-            # if num_col:
-            #     print(Fore.GREEN + f"[+] We determined that your database has {num_col} columns at this URL, as the server did not handle exceptions properly during the SQL query.")
-            #     results.append({
-            #         "url": test_url,
-            #         "columns_detected": num_col
-            #     })
+            if num_col:
+                print(Fore.GREEN + f"[+] We determined that your database has {num_col} columns at this URL, as the server did not handle exceptions properly during the SQL query.")
+                results.append({
+                    "url": test_url,
+                    "columns_detected": num_col
+                })
                 
-            # if admin_found:
-            #     print(Fore.GREEN + f"[+] Se encontró la contraseña del administrador en {test_url}: {admin_password}.")
-            #     results.append({
-            #         "url": test_url,
-            #         "admin_password_found": True,
-            #         "admin_password": admin_password
-            #     })
+            if admin_found:
+                print(Fore.GREEN + f"[+] Se encontró la contraseña del administrador en {test_url}: {admin_password}.")
+                results.append({
+                    "url": test_url,
+                    "admin_password_found": True,
+                    "admin_password": admin_password
+                })
                 
-            # if db_version:
-            #     print(Fore.GREEN + f"[+] Database version found: {db_version} for {test_url}")
-            #     results.append({
-            #         "url": test_url,
-            #         "database_version_found": True,
-            #         "database_version": db_version
-            #     })
+            if db_version:
+                print(Fore.GREEN + f"[+] Database version found: {db_version} for {test_url}")
+                results.append({
+                    "url": test_url,
+                    "database_version_found": True,
+                    "database_version": db_version
+                })
                 
             if xss_results:
                 for result in xss_results:
@@ -702,17 +702,17 @@ def handle_scan():
                 print("[-] URL not vulnerable to SQL injection")
             
         return jsonify({
-            # "status_messages": status_messages,
-            # "sql_vulnerabilities_found": any('payloads' in result for result in results),
-            # "columns_detected_found": any('columns_detected' in result for result in results),
-            # "admin_password_found": any('admin_password_found' in result for result in results),
-            # "database_version_found": any('database_version_found' in result for result in results),
+            "status_messages": status_messages,
+            "sql_vulnerabilities_found": any('payloads' in result for result in results),
+            "columns_detected_found": any('columns_detected' in result for result in results),
+            "admin_password_found": any('admin_password_found' in result for result in results),
+            "database_version_found": any('database_version_found' in result for result in results),
             "xss_vulnerabilities_found": any('xss_vulnerability_found' in result for result in results),
             "xss_form_vulnerabilities_found": any('xss_form_vulnerability_found' in result for result in results),
-            # "sql_injection_results": [r for r in results if 'payloads' in r],
-            # "column_detection_results": [r for r in results if 'columns_detected' in r],
-            # "admin_password_results": [r for r in results if 'admin_password_found' in r],
-            # "database_version_results": [r for r in results if 'database_version_found' in r],
+            "sql_injection_results": [r for r in results if 'payloads' in r],
+            "column_detection_results": [r for r in results if 'columns_detected' in r],
+            "admin_password_results": [r for r in results if 'admin_password_found' in r],
+            "database_version_results": [r for r in results if 'database_version_found' in r],
             "xss_results": [r for r in results if 'xss_vulnerability_found' in r],
             "xss_form_results": [r for r in results if 'xss_form_vulnerability_found' in r]
         })

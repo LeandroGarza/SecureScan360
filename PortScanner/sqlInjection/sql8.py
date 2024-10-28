@@ -143,17 +143,14 @@ def find_urls_to_test(url, base_url):
 def get_forms_and_inputs(response, max_attempts=3):
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    # Buscar formularios y sus inputs
     forms = soup.find_all('form')
 
-    # Buscar inputs en otros contenedores como 'div', 'section', etc.
     containers_with_inputs = []
     containers = soup.find_all(['div', 'section', 'article'])
     for container in containers:
         if container.find_all(['input', 'textarea', 'button']):
             containers_with_inputs.append(container)
 
-    # Intentar de nuevo si no se encontraron formularios ni inputs
     attempt = 1
     while not forms and not containers_with_inputs and attempt <= max_attempts:
         time.sleep(1)
@@ -197,7 +194,7 @@ def exploit_sqli_url(url):
             r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)
             
             if 500 <= r.status_code < 600:
-                print(Fore.GREEN + f"[+] Vulnerable URL found with payload {payload}")
+                print(Fore.GREEN + f"[+] 1Vulnerable URL found with payload {payload}")
                 return True
         
         except SSLError as e:
@@ -237,7 +234,7 @@ def exploit_sqli_url(url):
                 r = requests.get(form_url, params=form_data, verify=False, proxies=proxies)
 
             if 500 <= r.status_code < 600:
-                print(Fore.GREEN + f"[+] SQLi vulnerability found in form with payload: {payload}" + Style.RESET_ALL)
+                print(Fore.GREEN + f"[+] 2SQLi vulnerability found in form with payload: {payload}" + Style.RESET_ALL)
                 return True
 
     print("[-] No SQLi vulnerabilities found in forms or URLs.")
@@ -279,7 +276,7 @@ def submit_xss_payloads_to_forms(url):
                 r = requests.get(form_url, params=form_data, verify=False, proxies=proxies)
 
             if payload in r.text:
-                print(Fore.GREEN + f"[+] sql vulnerability found in form with payload: {payload}" + Style.RESET_ALL)
+                print(Fore.GREEN + f"[+] 3sql vulnerability found in form with payload: {payload}" + Style.RESET_ALL)
         
                 return True
 
@@ -298,7 +295,7 @@ def submit_xss_payloads_to_forms(url):
         for payload in sql_payloads:
             r = requests.get(url, params=form_data, verify=False, proxies=proxies)
             if payload in r.text:
-                print(Fore.GREEN + f"[+] XSS vulnerability found in container with payload: {payload}")
+                print(Fore.GREEN + f"[+] SQL vulnerability found in container with payload: {payload}")
                 return True
 
     print("[-] No XSS vulnerabilities found in forms or containers.")

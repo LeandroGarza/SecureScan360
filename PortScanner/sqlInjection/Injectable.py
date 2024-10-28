@@ -641,6 +641,7 @@ def exploit_sqli_column_number(url):
             print(f"[-] Request error en {target_url}: {e}")
             return False
     return False
+
 def handle_scan():
     """
     Handles the process of scanning a base URL for potential SQL Injection and XSS vulnerabilities.
@@ -649,7 +650,7 @@ def handle_scan():
     - Retrieves and tests different URL paths with parameters for vulnerabilities.
     - Checks each discovered URL for SQL Injection vulnerabilities, 
       including checking the number of columns in the database and user tables.
-    - Optionally checks for XSS vulnerabilities (commented out in current version).
+    - Checks for XSS vulnerabilities.
 
     Returns:
         None
@@ -681,7 +682,6 @@ def handle_scan():
             exploit_sqli_users_table(test_url)
             exploit_database_version(test_url)
             
-            # Uncomment these to test for XSS vulnerabilities
             # exploit_xss_url(test_url)
             # submit_xss_payloads_to_forms(test_url)
             
