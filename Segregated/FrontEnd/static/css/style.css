@@ -1,0 +1,204 @@
+body {
+    font-family: 'Montserrat', sans-serif;
+    margin: 0;
+    padding: 25px;
+    background-color: #1d1f21;
+    color: #c5c8c6;
+    font-size: 22px;    
+}
+
+h1 {
+    color: #ffc44f;
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 40px;
+}
+
+form {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+label {
+    margin-right: 10px;
+    color: #ffffff;
+    font-size: 19px;
+}
+
+input {
+    margin-right: 9px;
+    padding: 10px;
+    border: 1px solid #ffffff;
+    border-radius: 5px;
+    background-color: #373b41;
+    color: #c5c8c6;
+    font-size: 18px;
+    width: 250px;
+    transition: all 0.3s ease;
+}
+
+input:focus {
+    border-color: #ffc44f;
+    outline: none;
+}
+
+input[type="submit"], .submit-button {
+    background-color: #ffc44f;
+    color: #1d1f21;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 18px;
+    transition: all 0.3s ease;
+}
+
+input[type="submit"]:hover, .submit-button:hover {
+    background-color: #e0b53a;
+}
+
+#tasks {
+    text-align: center;
+    font-size: 18px;
+}
+
+.task-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 20px;
+    font-size: 17px;
+}
+
+.task {
+    border: 1px solid #444;
+    border-radius: 10px;
+    padding: 20px;
+    width: calc(33.333% - 40px);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    background-color: #282a2e;
+}
+
+.task:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+}
+
+@media (max-width: 768px) {
+    .task {
+        width: calc(50% - 20px);
+    }
+}
+
+@media (max-width: 480px) {
+    .task {
+        width: 100%; 
+    }
+}
+
+.task h3 {
+    margin-top: 0;
+    color: #ffc44f;
+}
+
+#results {
+    background-color: #282a2e;
+    padding: 20px;
+    border-radius: 10px;
+    margin-top: 20px;
+    color: #c5c8c6;
+}
+
+#results h2, #results h3 {
+    color: #ffc44f;
+    margin-bottom: 10px;
+}
+
+#results .result-block {
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 1px solid #444;
+    border-radius: 5px;
+    background-color: #1d1f21;
+    font-size: 19px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.port-info {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.vulnerability-details {
+    color: #f0c674;
+    font-size: 19px;
+    margin-top: 10px; 
+    clear: both;
+    display: block;
+}
+
+.vulnerable {
+    color: red;
+    font-weight: bold;
+    display: block;
+}
+
+#results .vulnerability-details p {
+    margin: 2px 0;
+    font-size: 19px;
+}
+
+#results .status-success {
+    color: green;
+    font-weight: bold;
+    font-size: 19px;
+}
+
+#results .status-failure {
+    color: red;
+    font-weight: bold;
+    font-size: 19px;
+}
+
+#results .status-error {
+    color: orange;
+    font-weight: bold;
+    font-size: 19px;
+}
+
+#message {
+    margin-top: 20px;
+    font-size: 1.2em;
+    color: rgb(255, 255, 255);
+}
+
+#message:empty, #results:empty {
+    display: none;
+}
+
+.result-block hr {
+    border: 0;
+    border-top: 1px solid #444;
+    margin: 20px 0;
+}
+
+.result-block:not(:last-child) {
+    border-bottom: 2px solid #444;
+    padding-bottom: 20px;
+    margin-bottom: 40px;
+}
+
+#loading-message {
+    display: none;
+    font-size: 16px;
+    color: #cecece;
+    margin-top: 20px;
+    text-align: center;
+}
+
+#loading-message i {
+    margin-right: 10px;
+}
