@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return response.json();
         })
         .then(data => {
+            console.log('Data recibida del backend:', data);
             if (data.error) {
                 messageDiv.innerText = data.error;
                 messageDiv.style.display = 'block';
@@ -46,9 +47,9 @@ document.addEventListener('DOMContentLoaded', function() {
             loadingMessage.style.display = 'none';
         })
         .catch(error => {
-            console.error('Error:', error);
+            console.error('Error exacto:', error);
             loadingMessage.style.display = 'none';
-            messageDiv.innerText = 'Error al realizar la solicitud.';
+            messageDiv.innerText = `Error al realizar la solicitud: ${error.message}`;
             messageDiv.style.display = 'block';
             messageDiv.style.color = 'red';
         });
@@ -60,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
     buttons.portScan.addEventListener('click', () => runScan('port_scan'));
     buttons.bruteForce.addEventListener('click', () => runScan('brute_force'));
 
-    function formatResults(data) {
+    function formatResults(data, testType) {
 
         let html = `<h2>Resultados de la Prueba: ${testType.replace('_', ' ').toUpperCase()}</h2>`;
 
@@ -199,6 +200,5 @@ document.addEventListener('DOMContentLoaded', function() {
         html += '<p>¡Felicitaciones! El escaneo de puertos, la prueba de fuerza bruta, el sql injection y xss han finalizado con éxito.</p>';
         return html;
     }
-    
-    
+  
 });
