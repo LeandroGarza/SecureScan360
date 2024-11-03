@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 break;
         }
 
-        html += '<p>¡Felicitaciones! El escaneo de puertos, la prueba de fuerza bruta, el sql injection y xss han finalizado con éxito.</p>';
+        html += '<p>¡Felicitaciones! La prueba ha finalizado con éxito.</p>';
         return html;
     }
   

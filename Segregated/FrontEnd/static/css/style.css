@@ -1,3 +1,4 @@
+/* Fondo y tipografía general */
 body {
     font-family: 'Montserrat', sans-serif;
     margin: 0;
@@ -8,10 +9,11 @@ body {
 }
 
 h1 {
-    color: #ffc44f;
+    color: #ffbf00;  /* Tono menos saturado para el amarillo */
     text-align: center;
     margin-bottom: 30px;
     font-size: 40px;
+    font-weight: bold;
 }
 
 form {
@@ -25,23 +27,25 @@ label {
     font-size: 19px;
 }
 
-input {
-    margin-right: 9px;
-    padding: 10px;
-    border: 1px solid #ffffff;
-    border-radius: 5px;
-    background-color: #373b41;
+/* Campo de entrada de IP/Dominio */
+input[type="text"] {
+    width: 350px;  /* Aumentado el ancho */
+    padding: 12px;
+    font-size: 20px;
+    border-radius: 8px;
+    border: 2px solid #ffc44f;
+    background-color: #282a2e;
     color: #c5c8c6;
-    font-size: 18px;
-    width: 250px;
     transition: all 0.3s ease;
 }
 
-input:focus {
-    border-color: #ffc44f;
+input[type="text"]:focus {
+    border-color: #e0b53a;
+    box-shadow: 0 0 8px rgba(255, 196, 79, 0.6);
     outline: none;
 }
 
+/* Botones de envío */
 input[type="submit"], .submit-button {
     background-color: #ffc44f;
     color: #1d1f21;
@@ -57,11 +61,20 @@ input[type="submit"]:hover, .submit-button:hover {
     background-color: #e0b53a;
 }
 
+/* Contenedor principal de tareas */
 #tasks {
     text-align: center;
     font-size: 18px;
+    margin-top: 30px;
 }
 
+#tasks h2 {
+    font-size: 24px;
+    color: #ffbf00;  /* Texto profesional y amigable */
+    font-weight: bold;
+}
+
+/* Tarjetas de cada tarea */
 .task-container {
     display: flex;
     flex-wrap: wrap;
@@ -76,16 +89,17 @@ input[type="submit"]:hover, .submit-button:hover {
     border-radius: 10px;
     padding: 20px;
     width: calc(33.333% - 40px);
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     background-color: #282a2e;
 }
 
 .task:hover {
     transform: translateY(-5px);
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
 }
 
+/* Responsividad para diferentes tamaños de pantalla */
 @media (max-width: 768px) {
     .task {
         width: calc(50% - 20px);
@@ -101,8 +115,28 @@ input[type="submit"]:hover, .submit-button:hover {
 .task h3 {
     margin-top: 0;
     color: #ffc44f;
+    font-size: 20px;
+    margin-bottom: 15px;
 }
 
+/* Botones dentro de las tarjetas de tareas */
+.task-button {
+    background-color: #ffc44f;
+    color: #1d1f21;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 16px;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.task-button:hover {
+    background-color: #e0b53a;
+    transform: scale(1.05);
+}
+
+/* Sección de resultados */
 #results {
     background-color: #282a2e;
     padding: 20px;
