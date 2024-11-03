@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const resultsDiv = document.getElementById('results');
     const messageDiv = document.getElementById('message');
 
-    // Botones para seleccionar la prueba
     const buttons = {
         sql: document.getElementById('sql-button'),
         xss: document.getElementById('xss-button'),
@@ -14,12 +13,21 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     function runScan(testType) {
+        const target = targetInput.value.trim();
+
+        if (!target) {
+            messageDiv.innerText = "Por favor ingrese la URL o IP a escanear";
+            messageDiv.style.display = 'block';
+            messageDiv.classList.add('error-message');
+            loadingMessage.style.display = 'none';
+            return; 
+        }
+
         loadingMessage.style.display = 'block';
         tasksSection.style.display = 'none';
         resultsDiv.style.display = 'none';
         messageDiv.style.display = 'none';
-    
-        const target = targetInput.value;
+        messageDiv.classList.remove('error-message');
     
         fetch('http://127.0.0.1:5000/scan', {
             method: 'POST',
@@ -39,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.error) {
                 messageDiv.innerText = data.error;
                 messageDiv.style.display = 'block';
-                messageDiv.style.color = 'red';
+                messageDiv.classList.add('error-message');
             } else {
                 resultsDiv.innerHTML = formatResults(data, testType);
                 resultsDiv.style.display = 'block';
@@ -51,8 +59,9 @@ document.addEventListener('DOMContentLoaded', function() {
             loadingMessage.style.display = 'none';
             messageDiv.innerText = `Error al realizar la solicitud: ${error.message}`;
             messageDiv.style.display = 'block';
-            messageDiv.style.color = 'red';
+            messageDiv.classList.add('error-message');
         });
+        
     }
     
     
@@ -63,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function formatResults(data, testType) {
 
-        let html = `<h2>Resultados de la Prueba: ${testType.replace('_', ' ').toUpperCase()}</h2>`;
+        let html = "";
 
         switch (testType) {
             case 'port_scan':
