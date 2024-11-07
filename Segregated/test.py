@@ -895,31 +895,32 @@ def scan(target):
             host_results['protocols'].append(protocol_results)
         scan_results.append(host_results)
 
-    message = 'Scan completed successfully.'
-    if not vulnerabilities_found and filtered_ports > 0:
-        message = 'No vulnerabilities found, but the majority of ports are filtered.'
-    if open_ports == 0:
-        message = 'No open ports found.'
-    if not vulnerabilities_found and open_ports == 0 and filtered_ports > 0:
-        message = 'Your site appears secure as most ports are filtered.'
-
     return {
         'vulnerabilities_found': vulnerabilities_found,
         'results': scan_results,
-        'message': message,
         'filtered_ports': filtered_ports,
         'open_ports': open_ports
     }
 
 def start_brute_force(target):
-    stop_flag = False
-    max_threads = 5
+    max_threads = 10
     thread_limiter = threading.BoundedSemaphore(max_threads)
     brute_force_results = []
-    failed_attempts = 0
-    max_failed_attempts = 5
-    failed_attempts_lock = threading.Lock()
 
+    max_failed_attempts_per_service = {
+        'SSH': 10,
+        'FTP': 10,
+        'Telnet': 10,
+        'RDP': 10,
+        'VNC': 10,
+        'MySQL': 10,
+        'MSSQL': 10,
+        'SMTP': 10
+    }
+
+    failed_attempts_per_service = {service: 0 for service in max_failed_attempts_per_service}
+    stop_flag_per_service = {service: False for service in max_failed_attempts_per_service}
+    
     ports_to_test = {
         'SSH': 22,
         'FTP': 21,
@@ -931,124 +932,295 @@ def start_brute_force(target):
         'SMTP': 25
     }
 
-    def service_connect(service_name, username, password, port):
-        nonlocal stop_flag, failed_attempts
+    def service_connect(service_name, username, password, port, max_attempts=10):
+        nonlocal brute_force_results
         result = None
+
+        if stop_flag_per_service[service_name] or failed_attempts_per_service[service_name] >= max_failed_attempts_per_service[service_name]:
+            return  
 
         try:
             if service_name == 'SSH':
-                ssh = paramiko.SSHClient()
-                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                ssh.connect(target, port=port, username=username, password=password)
-                result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
-                ssh.close()
-                stop_flag = True
+                ssh_attempts = 0
+                while ssh_attempts < max_attempts and not stop_flag_per_service[service_name]:
+                    try:
+                        ssh = paramiko.SSHClient()
+                        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                        ssh.connect(target, port=port, username=username, password=password)
+                        print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
+                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
+                        stop_flag_per_service[service_name] = True
+                        ssh.close()
+                        break
+                    except paramiko.AuthenticationException:
+                        print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
+                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure'}
+                        failed_attempts_per_service[service_name] += 1
+                        ssh_attempts += 1
+                        time.sleep(1)  
+                    except socket.timeout:
+                        # Manejo específico para tiempo de espera agotado en la conexión
+                        failed_attempts_per_service[service_name] += 1
+                        ssh_attempts += 1
+                        print(termcolor.colored(f"[-] SSH Connection Timed Out for {username}:{password} on {service_name}", 'red'))
+                        time.sleep(2)
+                        if ssh_attempts >= max_attempts:
+                            stop_flag_per_service[service_name] = True
+                            break 
+                    except Exception as e:
+                        print(termcolor.colored(f"[-] SSH Connection Failed: {e}", 'red'))
+                        failed_attempts_per_service[service_name] += 1
+                        ssh_attempts += 1
+                        time.sleep(2)
+                        if ssh_attempts >= max_attempts:
+                            print(termcolor.colored(f"[-] Max password attempts reached for SSH on {target}:{port}", 'red'))
+                            stop_flag_per_service[service_name] = True
+                            break
 
+                if ssh_attempts >= max_attempts:
+                    print(termcolor.colored(f"[-] Max password attempts reached for SSH on {target}:{port}", 'red'))
+                    stop_flag_per_service[service_name] = True
+                    
             elif service_name == 'FTP':
-                ftp = ftplib.FTP()
-                ftp.connect(target, port)
-                ftp.login(user=username, passwd=password)
-                result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
-                ftp.quit()
-                stop_flag = True  
+                ftp_attempts = 0
+                while ftp_attempts < max_attempts and not stop_flag_per_service[service_name]:
+                    try:
+                        with ftplib.FTP() as ftp:
+                            ftp.connect(target, port, timeout=10)
+                            ftp.login(user=username, passwd=password)
+                            print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
+                            result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
+                            stop_flag_per_service[service_name] = True
+                            ftp.quit()
+                            break
+                    except ftplib.error_perm:
+                        print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
+                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure'}
+                        failed_attempts_per_service[service_name] += 1
+                        ftp_attempts += 1
+                    
+                    except socket.timeout:
+                        print(termcolor.colored(f"[-] FTP Connection Timed Out for {username}:{password} on {service_name}", 'red'))
+                        failed_attempts_per_service[service_name] += 1
+                        ftp_attempts += 1
+                        time.sleep(2)
+                        if ftp_attempts >= max_attempts:
+                            print(termcolor.colored(f"[-] Max password attempts reached for FTP on {target}:{port}", 'red'))
+                            stop_flag_per_service[service_name] = True
+                            break
+                        
+                    except Exception as e:
+                        print(termcolor.colored(f"[-] FTP Connection Failed: {e}", 'red'))
+                        failed_attempts_per_service[service_name] += 1
+                        ftp_attempts += 1
+                        if ftp_attempts >= max_attempts:
+                            print(termcolor.colored(f"[-] Max password attempts reached for FTP on {target}:{port}", 'red'))
+                            stop_flag_per_service[service_name] = True
+                            break
+
+                if ftp_attempts >= max_attempts:
+                    print(termcolor.colored(f"[-] Max password attempts reached for FTP on {target}:{port}", 'red'))
+                    stop_flag_per_service[service_name] = True 
 
             elif service_name == 'Telnet':
-                telnet = telnetlib.Telnet(target, port)
-                telnet.read_until(b"login: ")
-                telnet.write(username.encode('ascii') + b"\n")
-                telnet.read_until(b"Password: ")
-                telnet.write(password.encode('ascii') + b"\n")
-                result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
-                telnet.close()
-                stop_flag = True
+                telnet_attempts = 0
+                while telnet_attempts < max_attempts and not stop_flag_per_service[service_name]:
+                    try:
+                        with telnetlib.Telnet(target, port, timeout=10) as telnet:
+                            telnet = telnetlib.Telnet(target, port)
+                            telnet.read_until(b"login: ")
+                            telnet.write(username.encode('ascii') + b"\n")
+                            telnet.read_until(b"Password: ")
+                            telnet.write(password.encode('ascii') + b"\n")
+                            print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
+                            result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
+                            stop_flag_per_service[service_name] = True
+                            telnet.close()
+                            break
+                    except EOFError:
+                        print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
+                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure'}
+                        failed_attempts_per_service[service_name] += 1
+                        telnet_attempts += 1
+                        
+                    except socket.timeout as e:
+                        # Maneja errores de tiempo de espera explícitamente
+                        print(termcolor.colored(f"[-] Telnet Connection Timed Out: {e}", 'red'))
+                        failed_attempts_per_service[service_name] += 1
+                        telnet_attempts += 1
+                        time.sleep(2)
+                    
+                    except Exception as e:
+                        print(termcolor.colored(f"[-] Telnet Connection Failed: {e}", 'red'))
+                        failed_attempts_per_service[service_name] += 1
+                        telnet_attempts += 1
+                        if telnet_attempts >= max_attempts:  # Si alcanzamos el máximo de intentos fallidos, salimos
+                            print(termcolor.colored(f"[-] Max password attempts reached for Telnet on {target}:{port}", 'red'))
+                            stop_flag_per_service[service_name] = True
+                            break
+
+                if telnet_attempts >= max_attempts:
+                    print(termcolor.colored(f"[-] Max password attempts reached for Telnet on {target}:{port}", 'red'))
+                    stop_flag_per_service[service_name] = True
 
             elif service_name == 'MySQL':
-                db = mysql.connector.connect(
-                    host=target,
-                    user=username,
-                    password=password,
-                    port=port
-                )
-                result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
-                db.close()
-                stop_flag = True
+                mysql_attempts = 0
+                while mysql_attempts < max_attempts and not stop_flag_per_service[service_name]:
+                    try:
+                        db = mysql.connector.connect(
+                            host=target,
+                            user=username,
+                            password=password,
+                            port=port,
+                            connect_timeout=5
+                        )
+                        print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
+                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
+                        stop_flag_per_service[service_name] = True
+                        db.close()
+                        break
+                    except mysql.connector.Error as e:
+                        # print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
+                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure', 'error': str(e)}
+                        failed_attempts_per_service[service_name] += 1
+                        mysql_attempts += 1
+                        
+                    except mysql.connector.errors.InterfaceError as e:
+                        if "timed out" in str(e):
+                            print(termcolor.colored(f"[-] MySQL Connection Timed Out for {username}:{password} on {service_name}", 'red'))
+                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure', 'error': str(e)}
+                        failed_attempts_per_service[service_name] += 1
+                        mysql_attempts += 1
+                        time.sleep(2)  # Espera antes del próximo intento
+
+                if mysql_attempts >= max_attempts:
+                    print(termcolor.colored(f"[-] Max password attempts reached for MySQL on {target}:{port}", 'red'))
+                    stop_flag_per_service[service_name] = True
                 
             elif service_name == 'RDP':
                 rdp_attempts = 0
-
                 try:
-                    while rdp_attempts < 10:
+                    # Intentos limitados para RDP
+                    while rdp_attempts < max_attempts and not stop_flag_per_service[service_name]:
                         command = f"xfreerdp /u:{username} /p:{password} /v:{target}:{port} +auth-only"
-                        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                        rdp_result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
-                        if result.returncode == 0:
-                            print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
+                        if rdp_result.returncode == 0:
+                            print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
                             result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                            stop_flag = True
-                            break  
+                            stop_flag_per_service[service_name] = True
+                            break
                         else:
-                            #print(termcolor.colored(('[-] Incorrect Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'red'))
+                            # print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
                             result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure'}
-                            rdp_attempts += 1 
+                            failed_attempts_per_service[service_name] += 1
+                            rdp_attempts += 1
 
-                    if rdp_attempts >= 10:
-                        #print(termcolor.colored('[-] Max password attempts reached for RDP', 'red'))
-                        stop_flag = True  
-                        
+                    if rdp_attempts >= max_attempts:
+                        print(termcolor.colored(f"[-] Max password attempts reached for RDP on {target}:{port}", 'red'))
+                        stop_flag_per_service[service_name] = True
+
                 except Exception as e:
                     result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'connection_failed', 'error': str(e)}
-                    #print(termcolor.colored(('[-] RDP Connection Failed: ' + str(e)), 'red'))
-
-            elif service_name == 'VNC':
-                try:
-                    vnc = api.connect(f"{target}:{port}")
-                    vnc.keyPress('password')
-                    result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                    print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
-                    vnc.disconnect()
-                    stop_flag = True
-                except Exception as e:
-                    result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure', 'error': str(e)}
-                    #print(termcolor.colored(('[-] VNC Connection Failed: ' + str(e)), 'red'))
-
-            elif service_name == 'MSSQL':
-                mssql = pymssql.connect(f'DRIVER={{SQL Server}};SERVER={target},{port};UID={username};PWD={password}')
-                result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
-                mssql.close()
-                stop_flag = True
-
+                    print(termcolor.colored(f"[-] RDP Connection Failed: {e}", 'red'))
+                    
+                except subprocess.TimeoutExpired:
+                        print(termcolor.colored(f"[-] RDP Connection Timed Out for {username}:{password} on {service_name}", 'red'))
+                        failed_attempts_per_service[service_name] += 1
+                        rdp_attempts += 1
+                        time.sleep(2)
+                    
             elif service_name == 'SMTP':
-                smtp_server = smtplib.SMTP(target, port)
-                smtp_server.starttls()
-                smtp_server.login(username, password)
-                result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
-                smtp_server.quit()
-                stop_flag = True
+                smtp_attempts = 0
+                while smtp_attempts < max_attempts and not stop_flag_per_service[service_name]:
+                    try:
+                        smtp_server = smtplib.SMTP(target, port)
+                        smtp_server.starttls()
+                        smtp_server.login(username, password)
+                        print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
+                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
+                        stop_flag_per_service[service_name] = True
+                        smtp_server.quit()
+                        break
+                    except socket.timeout:
+                        print(termcolor.colored(f"[-] SMTP Connection Timed Out for {username}:{password} on {service_name}", 'red'))
+                        failed_attempts_per_service[service_name] += 1
+                        smtp_attempts += 1
+                        time.sleep(2)
+                    except Exception as e:
+                        # print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
+                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure', 'error': str(e)}
+                        failed_attempts_per_service[service_name] += 1
+                        smtp_attempts += 1
+
+                if smtp_attempts >= max_attempts:
+                    print(termcolor.colored(f"[-] Max password attempts reached for SMTP on {target}:{port}", 'red'))
+                    stop_flag_per_service[service_name] = True
+                    
+            if service_name == 'VNC':
+                vnc_attempts = 0
+                while vnc_attempts < max_attempts and not stop_flag_per_service[service_name]:
+                    try:
+                        vnc = api.connect(f"{target}:{port}")
+                        vnc.keyPress('password')
+                        print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
+                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
+                        stop_flag_per_service[service_name] = True
+                        vnc.disconnect()
+                        break
+                    except socket.timeout:
+                        print(termcolor.colored(f"[-] VNC Connection Timed Out for {username}:{password} on {service_name}", 'red'))
+                        failed_attempts_per_service[service_name] += 1
+                        vnc_attempts += 1
+                        time.sleep(2)
+                    except Exception as e:
+                        # print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
+                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure', 'error': str(e)}
+                        failed_attempts_per_service[service_name] += 1
+                        vnc_attempts += 1
+
+                if vnc_attempts >= max_attempts:
+                    print(termcolor.colored(f"[-] Max password attempts reached for VNC on {target}:{port}", 'red'))
+                    stop_flag_per_service[service_name] = True
+            
+            elif service_name == 'MSSQL':
+                mssql_attempts = 0
+                while mssql_attempts < max_attempts and not stop_flag_per_service[service_name]:
+                    try:
+                        mssql = pymssql.connect(server=target, port=port, user=username, password=password, timeout=5)
+                        print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
+                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
+                        stop_flag_per_service[service_name] = True
+                        mssql.close()
+                        break
+                    except pymssql.InterfaceError as e:
+                        if "timed out" in str(e):
+                            print(termcolor.colored(f"[-] MSSQL Connection Timed Out for {username}:{password} on {service_name}", 'red'))
+                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure', 'error': str(e)}
+                        failed_attempts_per_service[service_name] += 1
+                        mssql_attempts += 1
+                        time.sleep(2)
+                    except Exception as e:
+                        # print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
+                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure', 'error': str(e)}
+                        failed_attempts_per_service[service_name] += 1
+                        mssql_attempts += 1
+
+                if mssql_attempts >= max_attempts:
+                    print(termcolor.colored(f"[-] Max password attempts reached for MSSQL on {target}:{port}", 'red'))
+                    stop_flag_per_service[service_name] = True
 
         except (paramiko.ssh_exception.AuthenticationException, ftplib.error_perm, mysql.connector.errors.ProgrammingError):
             result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure'}
-            #print(termcolor.colored(('[-] Incorrect Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'red'))
+            failed_attempts_per_service[service_name] += 1
         
         except Exception as e:
             result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'connection_failed', 'error': str(e)}
-            #print(termcolor.colored(('[-] Connection Failed: ' + str(e)), 'red'))
-            with failed_attempts_lock:
-                failed_attempts += 1
-            if failed_attempts >= max_failed_attempts:
-                print(f"The maximum allowed connection attempts has been reached. The system appears secure, as further access could not be obtained.")
-                stop_flag = True
-        
+            failed_attempts_per_service[service_name] += 1
+
         finally:
-            if result is not None:
-                #brute_force_results.append(result)
-                if result['status'] == 'success':
-                    brute_force_results.append(result)
+            if result is not None and result['status'] == 'success':
+                brute_force_results.append(result)
             thread_limiter.release()
 
     usernames_file = "usernamesReal.txt"
@@ -1062,8 +1234,8 @@ def start_brute_force(target):
     print('Starting Force Brute in host ' + target)
 
     for service_name, port in ports_to_test.items():
-        stop_flag = False
-        failed_attempts = 0
+        stop_flag_per_service[service_name] = False
+        failed_attempts_per_service[service_name] = 0
         print(f'\nStarting Force Brute in service {service_name} on port {port}')
         
         with open(usernames_file, 'r') as users:
@@ -1072,13 +1244,13 @@ def start_brute_force(target):
                 with open(passwords_file, 'r') as passwords:
                     for password in passwords:
                         password = password.strip()
-                        if stop_flag:
+                        if stop_flag_per_service[service_name]:
                             break
                         thread_limiter.acquire()
                         t = threading.Thread(target=service_connect, args=(service_name, username, password, port))
                         t.start()
                         time.sleep(0.5)
-                if stop_flag:
+                if stop_flag_per_service[service_name]:
                     break
             
     return brute_force_results
