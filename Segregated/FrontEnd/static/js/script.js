@@ -77,16 +77,21 @@ document.addEventListener('DOMContentLoaded', function() {
         switch (testType) {
             case 'port_scan':
                 html += '<h3>Prueba de Escaneo de Puertos:</h3>';
-                if (!data.scan_vulnerabilities_found) {
+                if (data.scan_result.length === 0){
                     html += '<p>No se encontraron vulnerabilidades en los puertos escaneados.</p>';
                 } else {
                     data.scan_result.results.forEach(hostResult => {
                         html += `<div class="result-block"><p><strong>Host:</strong> ${hostResult.host}</p>`;
+
                         hostResult.protocols.forEach(protocol => {
                             html += `<p><strong>Protocolo:</strong> ${protocol.protocol}</p>`;
+
                             protocol.ports.forEach(port => {
-                                if (port.product || port.version) {
-                                    html += `<div class="port-info"><p><strong>Puerto:</strong> ${port.port}, <strong>Producto:</strong> ${port.product}, <strong>Versión:</strong> ${port.version}</p>`;
+                                    if (port.state === 'open') {
+                                    html += `<div class="port-info"><p><strong>-Puerto:</strong> ${port.port} - </p>`;
+                                    html += `<p><strong> Producto:</strong> ${port.product || 'N/A'} - </p>`;
+                                    html += `<p><strong> Versión:</strong> ${port.version || 'N/A'} - </p>`;
+                                    
                                     if (port.vulnerable) {
                                         html += `<p class="vulnerable">&nbsp;Puerto Vulnerable!</p>`;
                                     } else {
