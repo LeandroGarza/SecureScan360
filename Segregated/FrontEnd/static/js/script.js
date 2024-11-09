@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
             case 'brute_force':
                 html += '<h3>Prueba de Fuerza Bruta:</h3>';
                 if (!data.brute_force_successful) {
-                    html += '<p>Intentamos realizar fuerza bruta pero no lo logramos debido a que su sistema es seguro.</p>';
+                    html += '<p>Intentamos realizar fuerza bruta en los servicios SSH, FTP, Telnet, RDP, VNC, MySQL, MSSQL y SMTP pero no lo logramos debido a que las credenciales se han camiado o son seguras.</p>';
                 } else {
                     html += `<h4>🔍 Credenciales encontradas durante la prueba de fuerza bruta:</h4>`;
                     data.brute_force_result.forEach(result => {

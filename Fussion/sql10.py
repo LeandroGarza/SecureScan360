@@ -646,8 +646,8 @@ def handle_scan():
             num_col = exploit_sqli_column_number(test_url)
             admin_found, admin_password = exploit_sqli_users_table(test_url)
             db_version = exploit_database_version(test_url)
-            xss_results = exploit_xss_url(test_url)
-            xss_form_vulnerabilities = submit_xss_payloads_to_forms(test_url)
+            # xss_results = exploit_xss_url(test_url)
+            # xss_form_vulnerabilities = submit_xss_payloads_to_forms(test_url)
             
             if sqli_result:
                 results.append({
@@ -678,25 +678,25 @@ def handle_scan():
                     "database_version": db_version
                 })
                 
-            if xss_results:
-                for result in xss_results:
-                    if result["vulnerable"]:
-                        sanitized_payload = escape(result['payload'])
-                        print(Fore.GREEN + f"[+] XSS vulnerability found with payload: {result['payload']}")
-                        results.append({
-                            "url": test_url,
-                            "xss_vulnerability_found": True,
-                            "xss_payload": sanitized_payload
-                        })
+            # if xss_results:
+            #     for result in xss_results:
+            #         if result["vulnerable"]:
+            #             sanitized_payload = escape(result['payload'])
+            #             print(Fore.GREEN + f"[+] XSS vulnerability found with payload: {result['payload']}")
+            #             results.append({
+            #                 "url": test_url,
+            #                 "xss_vulnerability_found": True,
+            #                 "xss_payload": sanitized_payload
+            #             })
             
-            if xss_form_vulnerabilities:
-                for form_vuln in xss_form_vulnerabilities:
-                    sanitized_form_payload = escape(form_vuln["payload"])
-                    results.append({
-                        "url": test_url,
-                        "xss_form_vulnerability_found": True,
-                        "xss_form_payload": sanitized_form_payload
-                    })
+            # if xss_form_vulnerabilities:
+            #     for form_vuln in xss_form_vulnerabilities:
+            #         sanitized_form_payload = escape(form_vuln["payload"])
+            #         results.append({
+            #             "url": test_url,
+            #             "xss_form_vulnerability_found": True,
+            #             "xss_form_payload": sanitized_form_payload
+            #         })
                 
             else:
                 print("[-] URL not vulnerable to SQL injection")
@@ -707,14 +707,14 @@ def handle_scan():
             "columns_detected_found": any('columns_detected' in result for result in results),
             "admin_password_found": any('admin_password_found' in result for result in results),
             "database_version_found": any('database_version_found' in result for result in results),
-            "xss_vulnerabilities_found": any('xss_vulnerability_found' in result for result in results),
-            "xss_form_vulnerabilities_found": any('xss_form_vulnerability_found' in result for result in results),
+            # "xss_vulnerabilities_found": any('xss_vulnerability_found' in result for result in results),
+            # "xss_form_vulnerabilities_found": any('xss_form_vulnerability_found' in result for result in results),
             "sql_injection_results": [r for r in results if 'payloads' in r],
             "column_detection_results": [r for r in results if 'columns_detected' in r],
             "admin_password_results": [r for r in results if 'admin_password_found' in r],
             "database_version_results": [r for r in results if 'database_version_found' in r],
-            "xss_results": [r for r in results if 'xss_vulnerability_found' in r],
-            "xss_form_results": [r for r in results if 'xss_form_vulnerability_found' in r]
+            # "xss_results": [r for r in results if 'xss_vulnerability_found' in r],
+            # "xss_form_results": [r for r in results if 'xss_form_vulnerability_found' in r]
         })
         
     else:

