@@ -25,8 +25,8 @@ El módulo de XSS (Cross-Site Scripting) busca y explota vulnerabilidades en las
 1. git clone https://github.com/LeandroGarza/SecureScan360.git
 2. cd SecureScan360
 3. pip install -r requirements.txt
-4. cd Fussion
-5. python3 Pentest.py
+4. cd Segregated
+5. python3 Pentesting.py
 6. Abrir en navegador http://127.0.0.1:5000 para utilizar la herramienta
 
 
